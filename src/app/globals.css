@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
+/**
+ * Krea-style dark tokens (Phase 1). Extend as components land.
+ * Accent purple + canvas/node colors match the workflow builder spec.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #000000;
+  --foreground: #fafafa;
+  --muted-foreground: #a1a1aa;
+  --canvas-bg: #09090b;
+  --node-bg: #18181b;
+  --node-border: #27272a;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --accent: #a855f7;
+  --accent-edge: #9333ea;
+  --handle-text: #22c55e;
+  --handle-image: #3b82f6;
+  --handle-video: #f97316;
+  --handle-number: #eab308;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-muted-foreground: var(--muted-foreground);
+  --color-canvas-bg: var(--canvas-bg);
+  --color-node-bg: var(--node-bg);
+  --color-node-border: var(--node-border);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Animated purple edges (workflow canvas) */
+@keyframes nextflow-flow-dash {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+
+.nextflow-edge-animated path {
+  stroke-dasharray: 6 4;
+  animation: nextflow-flow-dash 0.9s linear infinite;
+}
+
+/* LLM / long-running node emphasis */
+@keyframes nextflow-node-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(168, 85, 247, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 1px var(--accent), 0 0 28px rgba(168, 85, 247, 0.45);
+  }
+}
+
+.nextflow-node-running {
+  animation: nextflow-node-pulse 1.4s ease-in-out infinite;
 }

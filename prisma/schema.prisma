@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 model User {
@@ -90,18 +88,21 @@ model NodeResult {
   @@index([workflowId])
 }
 
+/** Workflow run lifecycle (user-visible summary). */
 enum RunStatus {
   PENDING
   RUNNING
   COMPLETED
+  PARTIAL
   FAILED
   CANCELLED
 }
 
+/** What the user chose to execute (full graph, selection, or one node). */
 enum RunScope {
-  LOCAL
-  CLOUD
-  SANDBOX
+  FULL
+  PARTIAL
+  SINGLE
 }
 
 enum NodeExecutionStatus {
