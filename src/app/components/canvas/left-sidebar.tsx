@@ -15,13 +15,13 @@ import type { AppNodeType } from '@/types/workflow'
 import { DND_TYPE } from '@/app/components/canvas/workflow-canvas'
 import { cn } from '@/lib/utils/cn'
 
-const QUICK_ACCESS: { type: AppNodeType; label: string; icon: typeof MessageSquareText }[] = [
-  { type: 'text', label: 'Text', icon: MessageSquareText },
-  { type: 'uploadImage', label: 'Upload image', icon: ImageIcon },
-  { type: 'uploadVideo', label: 'Upload video', icon: Film },
-  { type: 'llm', label: 'Run any LLM', icon: Sparkles },
-  { type: 'cropImage', label: 'Crop image', icon: Crop },
-  { type: 'extractFrame', label: 'Extract frame', icon: ScanSearch },
+const QUICK_ACCESS: { type: AppNodeType; label: string; icon: typeof MessageSquareText; description: string }[] = [
+  { type: 'text', label: 'Text Node', icon: MessageSquareText, description: 'Simple text input' },
+  { type: 'uploadImage', label: 'Upload Image Node', icon: ImageIcon, description: 'Transloadit upload' },
+  { type: 'uploadVideo', label: 'Upload Video Node', icon: Film, description: 'Transloadit upload' },
+  { type: 'llm', label: 'Run Any LLM Node', icon: Sparkles, description: 'Trigger.dev task' },
+  { type: 'cropImage', label: 'Crop Image Node', icon: Crop, description: 'FFmpeg on Trigger.dev' },
+  { type: 'extractFrame', label: 'Extract Frame from Video Node', icon: ScanSearch, description: 'FFmpeg on Trigger.dev' },
 ]
 
 /**
@@ -48,7 +48,7 @@ export function LeftSidebar() {
   }
 
   return (
-    <aside className="flex w-[200px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--node-bg)] md:w-[220px]">
+    <aside className="flex w-[200px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--node-bg)] md:w-[260px]">
       <div className="border-b border-[var(--border-subtle)] p-3">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Quick access</p>
         <input
@@ -60,7 +60,7 @@ export function LeftSidebar() {
         />
       </div>
       <nav className="flex flex-col gap-1 overflow-y-auto p-2" aria-label="Add nodes">
-        {QUICK_ACCESS.map(({ type, label, icon: Icon }) => (
+        {QUICK_ACCESS.map(({ type, label, icon: Icon, description }) => (
           <button
             key={type}
             type="button"
@@ -68,13 +68,15 @@ export function LeftSidebar() {
             onDragStart={(e) => onDragStart(e, type)}
             onClick={() => addAtViewCenter(type)}
             className={cn(
-              'flex w-full items-center gap-2 rounded-lg border border-transparent px-2 py-2 text-left text-xs font-medium text-zinc-300 transition',
-              'hover:border-zinc-700 hover:bg-zinc-800/80 hover:text-white',
-              'active:scale-[0.98]',
+              'flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition',
+              'hover:border-zinc-700 hover:bg-zinc-800/80 active:scale-[0.98]',
             )}
           >
-            <Icon className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
-            {label}
+            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
+            <div className="flex flex-col gap-0.5">
+              <span className="text-xs font-medium text-zinc-300 group-hover:text-white">{label}</span>
+              <span className="text-[10px] text-zinc-500">{description}</span>
+            </div>
           </button>
         ))}
       </nav>

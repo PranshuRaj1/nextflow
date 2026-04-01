@@ -26,7 +26,7 @@ This file provides complete context for AI coding agents (Claude Code, Cursor, C
 | Clerk | latest | Authentication — JWT middleware |
 | Trigger.dev | v3 | Background task execution — ALL node ops |
 | Transloadit + Uppy | latest | Browser-direct file uploads |
-| Google Generative AI SDK | latest | `@google/generative-ai` — Gemini API |
+| Google Generative AI SDK | latest | `@google/generative-ai` — Gemini API (default: `gemini-2.5-flash`) |
 | Prisma | latest | ORM — type-safe DB access |
 | Neon PostgreSQL | latest | Serverless hosted Postgres |
 | Lucide React | latest | Icon library |
@@ -319,7 +319,7 @@ Enforce in `isValidConnection` callback on `<ReactFlow>`. Return `false` for blo
 ### `run-llm-task`
 ```typescript
 // src/trigger/run-llm-task.ts
-import { task } from '@trigger.dev/sdk/v3'
+import { task } from '@trigger.dev/sdk'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 
 export const runLlmTask = task({
@@ -330,7 +330,7 @@ export const runLlmTask = task({
     // 1. Init Gemini with GEMINI_API_KEY (server-side only)
     // 2. Build content array: system instructions + user message + base64 images
     // 3. Call generateContent
-    // 4. Return { text, model, usage }
+    // 4. Return { text, model }
   }
 })
 ```

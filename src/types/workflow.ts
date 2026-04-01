@@ -4,12 +4,18 @@ import type { HandleDataType } from '@/types/handles'
 /** Discriminant for React Flow `node.type` (Quick Access palette). */
 export type AppNodeType = 'text' | 'uploadImage' | 'uploadVideo' | 'llm' | 'cropImage' | 'extractFrame'
 
-/** Default Gemini models for the LLM node selector (swap via env/task later). */
+/**
+ * Available Gemini models for the LLM node selector.
+ * Ordered by recommended usage: Flash (default all-rounder),
+ * Flash-Lite (highest free-tier quota), Pro (complex reasoning).
+ */
 export const GEMINI_MODEL_OPTIONS = [
-  { value: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-  { value: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-  { value: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+  { value: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', description: 'Best balance — recommended' },
+  { value: 'gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash Lite', description: 'Fastest, highest quota' },
+  { value: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro', description: 'Most capable reasoning' },
 ] as const
+
+export type GeminiModelId = typeof GEMINI_MODEL_OPTIONS[number]['value']
 
 export type TextNodeData = {
   value: string
@@ -95,7 +101,7 @@ export function defaultNodeData(type: AppNodeType): AppNodeData {
       return { videoUrl: null, status: 'idle' }
     case 'llm':
       return {
-        model: GEMINI_MODEL_OPTIONS[0]?.value ?? 'gemini-2.0-flash',
+        model: GEMINI_MODEL_OPTIONS[0]?.value ?? 'gemini-2.5-flash',
         systemPrompt: '',
         userMessage: '',
         resultText: '',
