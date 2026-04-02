@@ -2,6 +2,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { memo } from 'react'
+import { Textarea } from '@/components/ui/textarea'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import type { TextNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
@@ -19,8 +20,8 @@ function TextNodeInner(props: NodeProps<Node<TextNodeData, 'text'>>) {
       )}
     >
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">Text</p>
-      <textarea
-        className="nodrag nowheel h-24 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900/80 px-2 py-1.5 text-sm text-zinc-100 outline-none focus:border-[var(--accent)]"
+      <Textarea
+        className="nodrag nowheel min-h-[6rem] w-full resize-y border-zinc-700 bg-zinc-900/80 px-2 py-1.5 text-sm text-zinc-100 focus-visible:border-[var(--accent)] focus-visible:ring-0 focus-visible:ring-offset-0"
         value={data.value}
         onChange={(e) => updateNodeData(id, { value: e.target.value })}
         placeholder="Enter text…"

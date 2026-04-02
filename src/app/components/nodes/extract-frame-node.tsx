@@ -6,6 +6,7 @@ import { useWorkflowStore } from '@/stores/workflow-store'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { ExtractFrameNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils/cn'
 
 /**
@@ -44,11 +45,11 @@ function ExtractFrameNodeInner(props: NodeProps<Node<ExtractFrameNodeData, 'extr
 
       <label className="block">
         <span className="mb-0.5 block text-[10px] uppercase text-zinc-500">Timestamp</span>
-        <input
+        <Input
           type="text"
           className={cn(
-            'w-full rounded border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-[var(--accent)]',
-            cTs && 'cursor-not-allowed bg-zinc-900/40 text-zinc-500',
+            'h-8 border-zinc-700 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-100 focus-visible:border-[var(--accent)] focus-visible:ring-0 focus-visible:ring-offset-0',
+            cTs && 'cursor-not-allowed bg-zinc-900/40 text-zinc-500 opacity-100',
           )}
           placeholder='e.g. 10 or "50%"'
           value={data.timestamp}

@@ -5,6 +5,7 @@ import { memo, useCallback, useRef, useState } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import type { UploadVideoNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 import { transloaditUpload } from '@/lib/transloadit/upload'
 
@@ -96,15 +97,17 @@ function UploadVideoNodeInner(props: NodeProps<Node<UploadVideoNodeData, 'upload
       />
 
       {/* Upload button */}
-      <button
+      <Button
+        variant="outline"
+        size="sm"
         type="button"
         disabled={isUploading}
         onClick={() => inputRef.current?.click()}
         className={cn(
-          'mb-2 w-full rounded-lg border border-dashed py-2 text-xs font-medium transition',
+          'mb-2 w-full border-dashed text-xs text-zinc-300 font-medium transition',
           isUploading
             ? 'cursor-not-allowed border-zinc-700 text-zinc-500'
-            : 'border-zinc-600 text-zinc-300 hover:border-[var(--accent)] hover:text-white',
+            : 'border-zinc-600 hover:border-[var(--accent)] hover:text-white',
         )}
       >
         {isUploading ? (
@@ -115,7 +118,7 @@ function UploadVideoNodeInner(props: NodeProps<Node<UploadVideoNodeData, 'upload
         ) : (
           'Choose file'
         )}
-      </button>
+      </Button>
 
       {/* Error message */}
       {data.errorMessage ? (

@@ -3,6 +3,15 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { memo, useCallback, useEffect, useRef } from 'react'
 import { Loader2, Play } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Textarea } from '@/components/ui/textarea'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { LlmNodeData, UploadImageNodeData } from '@/types/workflow'
@@ -200,19 +209,22 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">Run any LLM</p>
 
       <label className="mb-1 block text-[10px] uppercase text-zinc-500">Model</label>
-      <select
-        className="mb-3 w-full rounded-lg border border-zinc-700 bg-zinc-900/80 px-2 py-1.5 text-xs text-zinc-100 outline-none focus:border-[var(--accent)]"
+      <Select
         value={data.model}
         disabled={isRunning}
-        onChange={(e) => updateNodeData(id, { model: e.target.value })}
-        aria-label="Gemini model"
+        onValueChange={(v) => updateNodeData(id, { model: v })}
       >
-        {GEMINI_MODEL_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
+        <SelectTrigger className="nodrag mb-3 h-8 w-full border-zinc-700 bg-zinc-900/80 px-2 text-xs text-zinc-100 outline-none focus:ring-0 focus:ring-offset-0 data-[state=open]:border-[var(--accent)] hover:border-[var(--accent)]">
+          <SelectValue placeholder="Select a model" />
+        </SelectTrigger>
+        <SelectContent>
+          {GEMINI_MODEL_OPTIONS.map((o) => (
+            <SelectItem key={o.value} value={o.value} className="text-xs">
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
 
       <div className="relative mb-2">
         <Handle
@@ -223,10 +235,10 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
           className={handleCls}
         />
         <label className="mb-1 block text-[10px] uppercase text-zinc-500">System prompt (optional)</label>
-        <textarea
+        <Textarea
           className={cn(
-            'nodrag h-12 w-full resize-none rounded-lg border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 outline-none focus:border-[var(--accent)]',
-            sysConn && 'cursor-not-allowed bg-zinc-900/30 text-zinc-500',
+            'nodrag min-h-[3rem] w-full resize-none border-zinc-700 bg-zinc-900/60 px-2 py-1 text-xs text-zinc-200 focus-visible:border-[var(--accent)] focus-visible:ring-0 focus-visible:ring-offset-0',
+            sysConn && 'cursor-not-allowed bg-zinc-900/30 text-zinc-500 opacity-100',
           )}
           placeholder="Or connect a Text node"
           value={data.systemPrompt}
@@ -245,10 +257,10 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
           className={handleCls}
         />
         <label className="mb-1 block text-[10px] uppercase text-zinc-500">User message (required)</label>
-        <textarea
+        <Textarea
           className={cn(
-            'nodrag h-16 w-full resize-y rounded-lg border border-zinc-700 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-100 outline-none focus:border-[var(--accent)]',
-            userConn && 'cursor-not-allowed bg-zinc-900/30 text-zinc-500',
+            'nodrag min-h-[4rem] w-full resize-y border-zinc-700 bg-zinc-900/80 px-2 py-1 text-xs text-zinc-100 focus-visible:border-[var(--accent)] focus-visible:ring-0 focus-visible:ring-offset-0',
+            userConn && 'cursor-not-allowed bg-zinc-900/30 text-zinc-500 opacity-100',
           )}
           placeholder="Or connect a Text node"
           value={data.userMessage}
@@ -259,15 +271,14 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
       </div>
 
       {/* Run button */}
-      <button
+      <Button
         type="button"
         onClick={handleRun}
         disabled={isRunning}
         aria-label="Run LLM node"
         className={cn(
-          'nodrag mb-3 flex w-full items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
-          'bg-[var(--accent)] text-white hover:opacity-90 active:scale-[0.97]',
-          isRunning && 'cursor-not-allowed opacity-60',
+          'nodrag mb-3 flex w-full gap-1.5 px-3 py-1.5 text-xs font-medium transition-all active:scale-[0.97]',
+          'bg-[var(--accent)] text-white hover:bg-[var(--accent)] hover:opacity-90',
         )}
       >
         {isRunning ? (
@@ -281,7 +292,7 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
             Run
           </>
         )}
-      </button>
+      </Button>
 
       {/* Result + images handle */}
       <div className="relative mb-2 rounded-lg border border-zinc-800 bg-zinc-950/50 p-2">
