@@ -78,6 +78,9 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
   /** Start polling a Trigger.dev run until it completes or fails. */
   const startPolling = useCallback(
     (runId: string) => {
+      if (pollRef.current !== null) {
+        clearInterval(pollRef.current)
+      }
       pollRef.current = setInterval(async () => {
         try {
           const res = await fetch(`/api/workflow/run-status/${runId}`)

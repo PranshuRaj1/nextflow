@@ -48,14 +48,14 @@ export function LeftSidebar() {
   }
 
   return (
-    <aside className="flex w-[200px] shrink-0 flex-col border-r border-[var(--border-subtle)] bg-[var(--node-bg)] md:w-[260px]">
-      <div className="border-b border-[var(--border-subtle)] p-3">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">Quick access</p>
+    <aside className="flex w-[200px] shrink-0 flex-col border-r border-subtle bg-panel md:w-[260px]">
+      <div className="border-b border-subtle p-3">
+        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Quick access</p>
         <input
           type="search"
           placeholder="Search nodes…"
           disabled
-          className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-900/50 px-2 py-1.5 text-xs text-zinc-500"
+          className="mt-2 w-full rounded-lg border border-subtle bg-surface px-2 py-1.5 text-xs text-muted-foreground placeholder:text-muted-foreground focus:border-active focus:outline-none"
           aria-label="Search nodes (coming soon)"
         />
       </div>
@@ -68,14 +68,14 @@ export function LeftSidebar() {
             onDragStart={(e) => onDragStart(e, type)}
             onClick={() => addAtViewCenter(type)}
             className={cn(
-              'flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition',
-              'hover:border-zinc-700 hover:bg-zinc-800/80 active:scale-[0.98]',
+              'group flex w-full items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 text-left transition',
+              'hover:border-subtle hover:bg-surface active:scale-[0.98]',
             )}
           >
-            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden />
+            <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground group-hover:text-foreground-secondary transition-colors" aria-hidden />
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs font-medium text-zinc-300 group-hover:text-white">{label}</span>
-              <span className="text-[10px] text-zinc-500">{description}</span>
+              <span className="text-xs font-medium text-foreground-secondary group-hover:text-foreground transition-colors">{label}</span>
+              <span className="text-[10px] text-muted-foreground transition-colors">{description}</span>
             </div>
           </button>
         ))}
