@@ -1,3 +1,4 @@
+// src/types/workflow.ts
 import type { Edge, Node } from '@xyflow/react'
 import type { HandleDataType } from '@/types/handles'
 

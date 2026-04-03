@@ -19,4 +19,8 @@ export default defineConfig({
     },
   },
   dirs: ["./src/trigger"],
+  build: {
+    external: ["transloadit"],
+    apt: ["ffmpeg", "ffprobe"],
+  },
 });

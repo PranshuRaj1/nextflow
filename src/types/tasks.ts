@@ -1,3 +1,4 @@
+// src/types/tasks.ts
 /**
  * Shared payload and result types for all Trigger.dev task definitions.
  * Import these in both the task file and API route callers.
