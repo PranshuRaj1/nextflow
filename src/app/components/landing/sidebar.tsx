@@ -3,6 +3,7 @@
 import { useState } from "react"
 
 import Link from "next/link"
+import Image from "next/image"
 import { Show, SignInButton, UserButton } from "@clerk/nextjs"
 import {
   LogoMark,
@@ -26,10 +27,27 @@ type NavItem = {
 }
 
 const mainNav: NavItem[] = [
-  { label: "Home", href: "/", icon: <IconHome className="text-white" />, active: true },
-  { label: "Train Lora", href: "#", icon: <IconTrainLora /> },
-  { label: "Node Editor", href: "/workflow", icon: <IconNodeEditor /> },
-  { label: "Assets", href: "#", icon: <IconFolder /> },
+  { 
+    label: "Home", 
+    href: "/", 
+    icon: <Image src="/home.webp" alt="Home" width={18} height={18} className="rounded-[4px]" />, 
+    active: true 
+  },
+  { 
+    label: "Train Lora", 
+    href: "#", 
+    icon: <Image src="/train lora.webp" alt="Train Lora" width={18} height={18} className="rounded-[4px]" /> 
+  },
+  { 
+    label: "Node Editor", 
+    href: "/workflow", 
+    icon: <Image src="/node editor.webp" alt="Node Editor" width={18} height={18} className="rounded-[4px]" /> 
+  },
+  { 
+    label: "Assets", 
+    href: "#", 
+    icon: <Image src="/assets.webp" alt="Assets" width={18} height={18} className="rounded-[4px]" /> 
+  },
 ]
 
 const toolsNav: NavItem[] = [
