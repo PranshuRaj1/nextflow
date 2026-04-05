@@ -3,24 +3,37 @@ import { IconChevronLeft, IconChevronRight } from "./icons"
 
 function HeroCard() {
   return (
-    <div className="relative w-full overflow-hidden rounded-2xl border border-white/8 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+    <div className="group relative w-full overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a1a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-500">
       <div
-        className="relative min-h-[280px] w-full px-8 py-16 sm:min-h-[320px] sm:py-20"
+        className="relative flex min-h-[280px] w-full flex-col items-center justify-center px-8 py-16 sm:min-h-[320px] sm:py-20"
         style={{
-          background:
-            "linear-gradient(145deg, #2a2a2a 0%, #3d3d3d 25%, #e8e8e8 55%, #f5f5f5 78%, #ffffff 100%)",
+          backgroundImage: "url(/landing-bg.webp)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
         }}
       >
         <div
-          className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-black/35 blur-3xl"
+          className="pointer-events-none absolute inset-0 bg-black/10 transition-opacity duration-300 group-hover:bg-black/30"
           aria-hidden
         />
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_80%_60%_at_50%_55%,rgba(0,0,0,0.55)_0%,transparent_65%)]"
-          aria-hidden
-        />
-        <p className="relative z-1 text-center text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.5)]">
+        
+        <p className="relative z-1 flex flex-col items-center text-center text-[clamp(1.5rem,4vw,2.25rem)] font-semibold leading-tight tracking-tight text-white drop-shadow-[0_2px_24px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:-translate-y-2">
           Start by generating a free image
+          
+          <span className="mt-6 flex flex-col items-center gap-3 opacity-0 transition-all duration-300 group-hover:opacity-100 sm:flex-row sm:gap-4">
+            <button className="flex h-10 items-center gap-2 rounded-full bg-white px-6 text-[14px] font-semibold text-black transition hover:bg-white/90 active:scale-95 shadow-lg">
+              Generate Image
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12L10 7L5 2" />
+              </svg>
+            </button>
+            <button className="flex h-10 items-center gap-2 rounded-full border border-white/20 bg-white/5 px-6 text-[14px] font-semibold text-white backdrop-blur-md transition hover:bg-white/10 active:scale-95 shadow-lg">
+              Generate Video
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12L10 7L5 2" />
+              </svg>
+            </button>
+          </span>
         </p>
       </div>
     </div>
