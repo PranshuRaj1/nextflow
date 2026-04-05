@@ -195,3 +195,28 @@
     @apply font-sans;
   }
 }
+
+/* React Flow (xyflow) Dark Theme Controls */
+.react-flow__controls {
+  @apply !rounded-lg !border !border-white/10 !shadow-2xl !overflow-hidden !m-3;
+}
+
+.react-flow__controls-button {
+  @apply !bg-[#1A1A1A] !border-none !transition-colors hover:!bg-[#262626] !border-b !border-white/5 last:!border-b-0 !h-8 !w-8 !flex !items-center !justify-center;
+}
+
+.react-flow__controls-button svg {
+  @apply !fill-white/70 !transition-all hover:!fill-white !drop-shadow-sm;
+}
+
+.react-flow__controls-button:hover svg {
+  @apply !fill-white;
+}
+
+.react-flow__minimap {
+  @apply !rounded-lg !border !border-white/10 !bg-[#0A0A0A]/90 !shadow-2xl !m-3;
+}
+
+.react-flow__minimap-mask {
+  @apply !fill-black/40;
+}

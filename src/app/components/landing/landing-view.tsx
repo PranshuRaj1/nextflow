@@ -5,7 +5,7 @@ function HeroCard() {
   return (
     <div className="group relative w-full overflow-hidden rounded-2xl border border-white/8 bg-[#1a1a1a] shadow-[0_24px_80px_rgba(0,0,0,0.45)] transition-all duration-500">
       <div
-        className="relative flex min-h-[280px] w-full flex-col items-center justify-center px-8 py-16 sm:min-h-[320px] sm:py-20"
+        className="relative flex min-h-[380px] w-full flex-col items-center justify-center px-8 py-20 sm:min-h-[480px] sm:py-20"
         style={{
           backgroundImage: "url(/landing-bg.webp)",
           backgroundSize: "cover",
