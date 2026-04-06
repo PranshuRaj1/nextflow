@@ -38,11 +38,13 @@ function normalizeConnection(c: Connection | AppEdge): Connection {
 }
 
 interface WorkflowStoreState {
+  workflowId: string | null
   workflowName: string
   nodes: AppNode[]
   edges: AppEdge[]
   past: Snapshot[]
   future: Snapshot[]
+  setWorkflowId: (id: string | null) => void
   setWorkflowName: (name: string) => void
   setNodes: (nodes: AppNode[]) => void
   setEdges: (edges: AppEdge[]) => void
@@ -62,11 +64,14 @@ interface WorkflowStoreState {
 const initialSnapshot = (): Snapshot => ({ nodes: [], edges: [] })
 
 export const useWorkflowStore = create<WorkflowStoreState>((set, get) => ({
+  workflowId: null,
   workflowName: 'Untitled workflow',
   nodes: [],
   edges: [],
   past: [],
   future: [],
+
+  setWorkflowId: (workflowId) => set({ workflowId }),
 
   setWorkflowName: (workflowName) => set({ workflowName }),
 
@@ -173,5 +178,12 @@ export const useWorkflowStore = create<WorkflowStoreState>((set, get) => ({
     return isValidWorkflowConnection(normalizeConnection(connection), nodes, edges)
   },
 
-  reset: () => set({ ...initialSnapshot(), past: [], future: [], workflowName: 'Untitled workflow' }),
+  reset: () =>
+    set({
+      ...initialSnapshot(),
+      past: [],
+      future: [],
+      workflowId: null,
+      workflowName: 'Untitled workflow',
+    }),
 }))

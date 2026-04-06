@@ -1,6 +1,7 @@
 import { task } from '@trigger.dev/sdk'
 import { GoogleGenerativeAI, type Part } from '@google/generative-ai'
 import type { RunLlmPayload, RunLlmResult } from '@/types/tasks'
+import { prisma } from '@/lib/db/prisma'
 
 /**
  * Trigger.dev background task — calls the Google Gemini API with optional
@@ -25,35 +26,93 @@ export const runLlmTask = task({
     randomize: false,
   },
   run: async (payload: RunLlmPayload): Promise<RunLlmResult> => {
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey) {
-      throw new Error('GEMINI_API_KEY environment variable is not set')
-    }
+    const startTime = Date.now()
 
-    const genAI = new GoogleGenerativeAI(apiKey)
-
-    const model = genAI.getGenerativeModel({
-      model: payload.model,
-      ...(payload.systemPrompt ? { systemInstruction: payload.systemPrompt } : {}),
-    })
-
-    // Build the content parts array — text first, then any images
-    const parts: Part[] = [{ text: payload.userMessage }]
-
-    for (const imageUrl of payload.imageUrls ?? []) {
-      const res = await fetch(imageUrl)
-      if (!res.ok) {
-        throw new Error(`Failed to fetch image at ${imageUrl}: ${res.status} ${res.statusText}`)
+    // ── 1. Create NodeExecution record (Running) ───────────────────────────
+    let executionId: string | undefined
+    if (payload.runId) {
+      try {
+        const execution = await prisma.nodeExecution.create({
+          data: {
+            runId: payload.runId,
+            nodeId: payload.nodeId,
+            nodeType: 'llm',
+            status: 'RUNNING',
+            inputs: {
+              model: payload.model,
+              systemPrompt: payload.systemPrompt,
+              userMessage: payload.userMessage,
+              imageUrls: payload.imageUrls,
+            } as any,
+          },
+        })
+        executionId = execution.id
+      } catch (err) {
+        console.error('[runLlmTask] Failed to create NodeExecution record:', err)
       }
-      const buffer = await res.arrayBuffer()
-      const base64 = Buffer.from(buffer).toString('base64')
-      const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
-      parts.push({ inlineData: { data: base64, mimeType } })
     }
 
-    const result = await model.generateContent(parts)
-    const text = result.response.text()
+    try {
+      const apiKey = process.env.GEMINI_API_KEY
+      if (!apiKey) {
+        throw new Error('GEMINI_API_KEY environment variable is not set')
+      }
 
-    return { text, model: payload.model }
+      const genAI = new GoogleGenerativeAI(apiKey)
+
+      const model = genAI.getGenerativeModel({
+        model: payload.model,
+        ...(payload.systemPrompt ? { systemInstruction: payload.systemPrompt } : {}),
+      })
+
+      // Build the content parts array — text first, then any images
+      const parts: Part[] = [{ text: payload.userMessage }]
+
+      for (const imageUrl of payload.imageUrls ?? []) {
+        const res = await fetch(imageUrl)
+        if (!res.ok) {
+          throw new Error(`Failed to fetch image at ${imageUrl}: ${res.status} ${res.statusText}`)
+        }
+        const buffer = await res.arrayBuffer()
+        const base64 = Buffer.from(buffer).toString('base64')
+        const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
+        parts.push({ inlineData: { data: base64, mimeType } })
+      }
+
+      const result = await model.generateContent(parts)
+      const text = result.response.text()
+      const durationMs = Date.now() - startTime
+
+      // ── 2. Update NodeExecution record (Completed) ────────────────────────
+      if (executionId) {
+        await prisma.nodeExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'COMPLETED',
+            output: { text, model: payload.model } as any,
+            executionMs: durationMs,
+          },
+        })
+      }
+
+      return { text, model: payload.model }
+    } catch (err) {
+      const durationMs = Date.now() - startTime
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+      // ── 3. Update NodeExecution record (Failed) ───────────────────────────
+      if (executionId) {
+        await prisma.nodeExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'FAILED',
+            error: { message: errorMessage } as any,
+            executionMs: durationMs,
+          },
+        })
+      }
+
+      throw err
+    }
   },
 })

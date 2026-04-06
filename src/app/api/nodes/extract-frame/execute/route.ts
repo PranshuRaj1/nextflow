@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { tasks } from '@trigger.dev/sdk/v3'
+import { tasks, runs } from '@trigger.dev/sdk/v3'
 import type { extractFrameTask } from '@/trigger/extract-frame-task'
 import type { ExtractFrameResult } from '@/types/tasks'
 
@@ -86,20 +86,28 @@ export async function POST(
   // ── 3. Dispatch Trigger.dev task and wait for result ──────────────────────
   let result: ExtractFrameResult
   try {
-    const handle = await tasks.triggerAndWait<typeof extractFrameTask>('extract-frame-task', {
+    const handle = await tasks.trigger<typeof extractFrameTask>('extract-frame-task', {
       nodeId,
       videoUrl,
       timestamp,
     })
 
-    if (!handle.ok) {
+    // Poll for completion since triggerAndWait only works inside a task
+    const terminalStatuses = ['COMPLETED', 'CANCELED', 'FAILED', 'CRASHED', 'SYSTEM_FAILURE', 'EXPIRED', 'TIMED_OUT']
+    let run = await runs.retrieve(handle.id)
+    while (!terminalStatuses.includes(run.status as string)) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      run = await runs.retrieve(handle.id)
+    }
+
+    if (run.status !== 'COMPLETED') {
       return NextResponse.json(
-        { error: `Extract frame task failed: ${handle.error ?? 'Unknown error'}` },
+        { error: `Extract frame task failed with status: ${run.status}` },
         { status: 500 },
       )
     }
 
-    result = handle.output
+    result = run.output as ExtractFrameResult
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to dispatch extract-frame task'
     return NextResponse.json({ error: message }, { status: 500 })

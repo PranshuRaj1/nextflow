@@ -4,6 +4,10 @@ import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { buildExecutionWaves } from '@/lib/workflow/topological-sort'
+import { prisma } from '@/lib/db/prisma'
+import { RunScope, RunStatus } from '@prisma/client'
+import { ensureAppUser } from '@/lib/db/user'
+import { currentUser } from '@clerk/nextjs/server'
 
 // ── Request schema ──────────────────────────────────────────────────────────
 
@@ -46,6 +50,18 @@ export const executeWorkflowSchema = z.object({
    * Pass a single-element array for scope: "single".
    */
   selectedNodeIds: z.array(z.string()).optional(),
+
+  /**
+   * The persistent ID of the workflow being executed.
+   * If omitted, the engine will upsert a default "Untitled workflow" for the user.
+   */
+  workflowId: z.string().nullable().optional(),
+
+  /**
+   * Optional name from the frontend for auto-saving the workflow.
+   * Defaults to "Untitled workflow" in the database.
+   */
+  workflowName: z.string().optional(),
 })
 
 export type ExecuteWorkflowRequest = z.infer<typeof executeWorkflowSchema>
@@ -108,13 +124,14 @@ export async function POST(
 
   const parsed = executeWorkflowSchema.safeParse(body)
   if (!parsed.success) {
+    console.error('[POST /api/workflow/execute] Validation error:', parsed.error.flatten())
     return NextResponse.json(
-      { success: false, error: parsed.error.flatten().fieldErrors.nodes?.[0] ?? 'Invalid request' },
+      { success: false, error: parsed.error.issues[0]?.message ?? 'Invalid request' },
       { status: 400 },
     )
   }
 
-  const { nodes, edges, selectedNodeIds } = parsed.data
+  const { nodes, edges, selectedNodeIds, workflowId, workflowName } = parsed.data
 
   // ── 3. Determine scope + node subset ─────────────────────────────────────
   const scope: 'full' | 'partial' | 'single' =
@@ -124,12 +141,6 @@ export async function POST(
         ? 'single'
         : 'partial'
 
-  /**
-   * When running a subset we still need to include all nodes in the DAG
-   * so the wave algorithm can correctly resolve dependencies.
-   * The frontend orchestrator will skip nodes not in `selectedNodeIds`
-   * by treating them as already-resolved with their cached output.
-   */
   const activeNodeIds =
     selectedNodeIds !== undefined && selectedNodeIds.length > 0
       ? nodes.filter((n) => selectedNodeIds.includes(n.id)).map((n) => n.id)
@@ -152,30 +163,74 @@ export async function POST(
     )
   }
 
-  // ── 5. Create WorkflowRun record (stub — Prisma wired in Phase 5) ─────────
-  /**
-   * TODO (Phase 5): replace this stub with a real Prisma upsert:
-   *
-   * const run = await prisma.workflowRun.create({
-   *   data: {
-   *     userId,
-   *     workflowId: parsed.data.workflowId,
-   *     status: 'running',
-   *     scope,
-   *     startedAt: new Date(),
-   *   },
-   * })
-   * const runId = run.id
-   */
-  const runId = `run_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  // ── 5. Create WorkflowRun record ──────────────────────────────────────────
+  try {
+    const user = await currentUser()
+    const email = user?.emailAddresses[0]?.emailAddress ?? 'unknown'
+    const appUser = await ensureAppUser(userId, email)
 
-  // ── 6. Return execution plan ──────────────────────────────────────────────
-  const plan: ExecutionPlan = {
-    runId,
-    scope,
-    allNodeIds: activeNodeIds,
-    waves,
+    // ── 5.1 Resolve Workflow ID ──────────────────────────────────────────────
+    let finalWorkflowId = workflowId
+
+    if (finalWorkflowId) {
+      await prisma.workflow.update({
+        where: { id: finalWorkflowId },
+        data: {
+          name: workflowName ?? 'Untitled workflow',
+          nodes: nodes as any,
+          edges: edges as any,
+        },
+      })
+    } else {
+      const defaultWorkflow = await prisma.workflow.upsert({
+        where: { id: `default_${userId}` },
+        create: {
+          id: `default_${userId}`,
+          userId: appUser.id,
+          name: workflowName ?? 'Untitled workflow',
+          nodes: nodes as any,
+          edges: edges as any,
+        },
+        update: {
+          name: workflowName ?? 'Untitled workflow',
+          nodes: nodes as any,
+          edges: edges as any,
+        },
+      })
+      finalWorkflowId = defaultWorkflow.id
+    }
+
+    // ── 5.2 Create WorkflowRun record ─────────────────────────────────────────
+    const run = await prisma.workflowRun.create({
+      data: {
+        userId: appUser.id,
+        workflowId: finalWorkflowId!,
+        name: workflowName ?? 'Untitled workflow',
+        status: RunStatus.PENDING,
+        scope:
+          scope === 'full'
+            ? RunScope.FULL
+            : scope === 'single'
+              ? RunScope.SINGLE
+              : RunScope.PARTIAL,
+        startedAt: new Date(),
+      },
+    })
+
+    const runId = run.id
+
+    // ── 6. Return execution plan ──────────────────────────────────────────────
+    const plan: ExecutionPlan = {
+      runId,
+      scope,
+      allNodeIds: activeNodeIds,
+      waves,
+    }
+
+    return NextResponse.json({ success: true, plan })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Database operation failed'
+    console.error('[POST /api/workflow/execute] Error:', message)
+    return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
-
-  return NextResponse.json({ success: true, plan })
 }

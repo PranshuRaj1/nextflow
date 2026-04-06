@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
-import { tasks } from '@trigger.dev/sdk/v3'
+import { tasks, runs } from '@trigger.dev/sdk/v3'
 import type { cropImageTask } from '@/trigger/crop-image-task'
 import type { CropImageResult } from '@/types/tasks'
 
@@ -78,7 +78,7 @@ export async function POST(
   // ── 3. Dispatch Trigger.dev task and wait for result ──────────────────────
   let result: CropImageResult
   try {
-    const handle = await tasks.triggerAndWait<typeof cropImageTask>('crop-image-task', {
+    const handle = await tasks.trigger<typeof cropImageTask>('crop-image-task', {
       nodeId,
       imageUrl,
       xPercent,
@@ -87,14 +87,22 @@ export async function POST(
       heightPercent,
     })
 
-    if (!handle.ok) {
+    // Poll for completion since triggerAndWait only works inside a task
+    const terminalStatuses = ['COMPLETED', 'CANCELED', 'FAILED', 'CRASHED', 'SYSTEM_FAILURE', 'EXPIRED', 'TIMED_OUT']
+    let run = await runs.retrieve(handle.id)
+    while (!terminalStatuses.includes(run.status as string)) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      run = await runs.retrieve(handle.id)
+    }
+
+    if (run.status !== 'COMPLETED') {
       return NextResponse.json(
-        { error: `Crop task failed: ${handle.error ?? 'Unknown error'}` },
+        { error: `Crop task failed with status: ${run.status}` },
         { status: 500 },
       )
     }
 
-    result = handle.output
+    result = run.output as CropImageResult
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to dispatch crop-image task'
     return NextResponse.json({ error: message }, { status: 500 })

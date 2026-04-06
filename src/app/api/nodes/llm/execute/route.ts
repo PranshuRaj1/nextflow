@@ -13,6 +13,7 @@ const requestSchema = z.object({
   systemPrompt: z.string().optional(),
   userMessage: z.string().min(1, 'userMessage is required'),
   imageUrls: z.array(z.string().url()).optional().default([]),
+  runId: z.string().optional(),
 })
 
 type LlmExecuteRequest = z.infer<typeof requestSchema>
@@ -75,22 +76,31 @@ export async function POST(
   // ── 3. Dispatch Trigger.dev task and wait for result ──────────────────────
   let result: RunLlmResult
   try {
-    const handle = await tasks.triggerAndWait<typeof runLlmTask>('run-llm-task', {
+    const handle = await tasks.trigger<typeof runLlmTask>('run-llm-task', {
       nodeId,
+      runId: parsed.data.runId,
       model,
       systemPrompt,
       userMessage,
       imageUrls,
     })
 
-    if (!handle.ok) {
+    // Poll for completion since triggerAndWait only works inside a task
+    const terminalStatuses = ['COMPLETED', 'CANCELED', 'FAILED', 'CRASHED', 'SYSTEM_FAILURE', 'EXPIRED', 'TIMED_OUT']
+    let run = await runs.retrieve(handle.id)
+    while (!terminalStatuses.includes(run.status as string)) {
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      run = await runs.retrieve(handle.id)
+    }
+
+    if (run.status !== 'COMPLETED') {
       return NextResponse.json(
-        { error: `LLM task failed: ${handle.error ?? 'Unknown error'}` },
+        { error: `LLM task failed with status: ${run.status}` },
         { status: 500 },
       )
     }
 
-    result = handle.output
+    result = run.output as RunLlmResult
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to dispatch LLM task'
     return NextResponse.json({ error: message }, { status: 500 })

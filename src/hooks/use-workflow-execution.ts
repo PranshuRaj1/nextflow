@@ -82,6 +82,7 @@ function collectInputs(
 async function dispatchNodeTask(
   node: AppNode,
   resolvedInputs: ResolvedInputs,
+  runId: string,
 ): Promise<unknown> {
   switch (node.type) {
     // ── Source nodes: resolve from stored data, no Trigger.dev task ─────────
@@ -133,6 +134,7 @@ async function dispatchNodeTask(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodeId: node.id,
+          runId,
           model: data.model,
           systemPrompt: systemPrompt || undefined,
           userMessage,
@@ -176,6 +178,7 @@ async function dispatchNodeTask(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodeId: node.id,
+          runId,
           imageUrl,
           xPercent,
           yPercent,
@@ -211,6 +214,7 @@ async function dispatchNodeTask(
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nodeId: node.id,
+          runId,
           videoUrl,
           timestamp,
         }),
@@ -266,6 +270,8 @@ async function dispatchNodeTask(
 export function useWorkflowExecution() {
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
+  const workflowId = useWorkflowStore((s) => s.workflowId)
+  const workflowName = useWorkflowStore((s) => s.workflowName)
 
   const {
     isRunning,
@@ -287,7 +293,7 @@ export function useWorkflowExecution() {
       const res = await fetch('/api/workflow/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodes, edges }),
+        body: JSON.stringify({ nodes, edges, workflowId, workflowName }),
       })
 
       if (!res.ok) {
@@ -345,7 +351,7 @@ export function useWorkflowExecution() {
           setNodeRunning(nodeId)
 
           try {
-            const output = await dispatchNodeTask(node, resolvedInputs)
+            const output = await dispatchNodeTask(node, resolvedInputs, plan.runId)
             resolvedMap.set(nodeId, output)
             setNodeSuccess(nodeId, output)
           } catch (err) {
@@ -364,7 +370,8 @@ export function useWorkflowExecution() {
   }, [
     isRunning,
     nodes,
-    edges,
+    workflowId,
+    workflowName,
     startRun,
     setNodeRunning,
     setNodeSuccess,

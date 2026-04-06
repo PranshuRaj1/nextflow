@@ -25,6 +25,8 @@ export interface RunLlmPayload {
   userMessage: string
   /** Zero or more CDN image URLs to include as inline image parts. */
   imageUrls?: string[]
+  /** Associated WorkflowRun ID (optional for local/standalone execution). */
+  runId?: string
 }
 
 /**
@@ -48,6 +50,8 @@ export interface CropImagePayload {
   yPercent: number
   widthPercent: number
   heightPercent: number
+  /** Associated WorkflowRun ID (optional). */
+  runId?: string
 }
 
 export interface CropImageResult {
@@ -62,6 +66,8 @@ export interface ExtractFramePayload {
   nodeId: string
   videoUrl: string
   timestamp: number | string
+  /** Associated WorkflowRun ID (optional). */
+  runId?: string
 }
 
 export interface ExtractFrameResult {
