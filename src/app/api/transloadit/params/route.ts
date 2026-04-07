@@ -53,12 +53,14 @@ export async function POST(req: Request) {
 // Assembly params builders
 // ---------------------------------------------------------------------------
 
-/** Image: accept the raw file + strip metadata with /image/optimize. */
+/** Image: accept the raw file + strip metadata with /image/optimize.
+ *  The /upload/handle robot is implicit (":original" is reserved for it)
+ *  and the optimise step reads from it via `use: ':original'`.
+ */
 function buildImageParams(key: string, expires: string) {
   return {
     auth: { key, expires },
     steps: {
-      ':original': { robot: '/upload/handle' },
       optimise: {
         robot: '/image/optimize',
         use: ':original',
@@ -69,7 +71,11 @@ function buildImageParams(key: string, expires: string) {
   }
 }
 
-/** Video (Phase 3): just accept the raw file — no transcode step. */
+/** Video (Phase 3): accept the raw file with no transcoding.
+ *  Transloadit REQUIRES the /upload/handle robot to be named ':original'.
+ *  The uploaded file URL will appear in the assembly's `uploads[]` array
+ *  (not `results{}`), which our extractCdnUrl handles via fallback.
+ */
 function buildVideoParams(key: string, expires: string) {
   return {
     auth: { key, expires },

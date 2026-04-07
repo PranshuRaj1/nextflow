@@ -42,6 +42,8 @@ export async function GET() {
         workflow: {
           select: {
             name: true,
+            nodes: true,
+            edges: true,
           },
         },
         _count: {

@@ -145,6 +145,7 @@ interface AssemblyResponse {
   ok: AssemblyStatus
   error?: string
   message?: string
+  uploads?: Array<{ ssl_url: string; url: string; name: string }>
   results?: Record<
     string,
     Array<{ ssl_url: string; url: string; name: string }>
@@ -190,7 +191,8 @@ async function pollAssembly(
 function extractCdnUrl(data: AssemblyResponse): string {
   const results = data.results ?? {}
 
-  // Prefer the optimise step result; fall back to :original
+  // 1. Prefer the optimise step result; fall back to ':original' if present in results
+  //    (Video raw uploads land in `uploads[]` below via the fallback)
   for (const key of ['optimise', ':original']) {
     const files = results[key]
     if (files && files.length > 0 && files[0]) {
@@ -198,11 +200,16 @@ function extractCdnUrl(data: AssemblyResponse): string {
     }
   }
 
-  // Last resort: any result from any step
+  // 2. Fall back to any result from any other step
   for (const files of Object.values(results)) {
     if (files && files.length > 0 && files[0]) {
       return files[0].ssl_url ?? files[0].url
     }
+  }
+
+  // 3. Fall back to the original upload field if results are empty (common for raw uploads)
+  if (data.uploads && data.uploads.length > 0 && data.uploads[0]) {
+    return data.uploads[0].ssl_url ?? data.uploads[0].url
   }
 
   throw new Error('Transloadit completed but returned no output files.')
