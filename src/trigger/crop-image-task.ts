@@ -59,50 +59,7 @@ export const cropImageTask = task({
 
     const imageBuffer = Buffer.from(await downloadRes.arrayBuffer())
 
-    // ── 2. Get image dimensions via FFprobe ───────────────────────────────
-    const { stdout: probeJson } = await execFileAsync('ffprobe', [
-      '-v', 'quiet',
-      '-print_format', 'json',
-      '-show_streams',
-      'pipe:0',
-    ], {
-      // Feed image bytes via stdin
-      input: imageBuffer,
-      encoding: 'buffer',
-      maxBuffer: 10 * 1024 * 1024, // 10 MB
-    } as Parameters<typeof execFileAsync>[2])
-
-    let imageWidth: number
-    let imageHeight: number
-    try {
-      const probe = JSON.parse(probeJson.toString()) as {
-        streams?: Array<{ codec_type?: string; width?: number; height?: number }>
-      }
-      const videoStream = probe.streams?.find((s) => s.codec_type === 'video')
-      if (!videoStream?.width || !videoStream?.height) {
-        throw new Error('Could not determine image dimensions from FFprobe output')
-      }
-      imageWidth = videoStream.width
-      imageHeight = videoStream.height
-    } catch (err) {
-      throw new Error(
-        `FFprobe failed to parse image dimensions: ${err instanceof Error ? err.message : String(err)}`,
-      )
-    }
-
-    // ── 3. Convert percentage params to pixel values ──────────────────────
-    const xPx = Math.round((payload.xPercent / 100) * imageWidth)
-    const yPx = Math.round((payload.yPercent / 100) * imageHeight)
-    const wPx = Math.max(1, Math.round((payload.widthPercent / 100) * imageWidth))
-    const hPx = Math.max(1, Math.round((payload.heightPercent / 100) * imageHeight))
-
-    // Clamp to image bounds to avoid FFmpeg errors on edge-case inputs
-    const safeX = Math.min(xPx, imageWidth - 1)
-    const safeY = Math.min(yPx, imageHeight - 1)
-    const safeW = Math.min(wPx, imageWidth - safeX)
-    const safeH = Math.min(hPx, imageHeight - safeY)
-
-    // ── 4. Write input to temp file and run FFmpeg crop ───────────────────
+    // ── 2. Write image to temp file (FFprobe reads from disk) ──────────────────
     const tmpDir = await mkdtemp(join(tmpdir(), 'nextflow-crop-'))
     const inputPath = join(tmpDir, 'input.jpg')
     const outputPath = join(tmpDir, 'output.jpg')
@@ -110,6 +67,45 @@ export const cropImageTask = task({
     try {
       await writeFile(inputPath, imageBuffer)
 
+      // ── 3. Get image dimensions via FFprobe ──────────────────────────────
+      const { stdout: probeJson } = await execFileAsync('ffprobe', [
+        '-v', 'quiet',
+        '-print_format', 'json',
+        '-show_streams',
+        inputPath,
+      ])
+
+      let imageWidth: number
+      let imageHeight: number
+      try {
+        const probe = JSON.parse(probeJson.toString()) as {
+          streams?: Array<{ codec_type?: string; width?: number; height?: number }>
+        }
+        const videoStream = probe.streams?.find((s) => s.codec_type === 'video')
+        if (!videoStream?.width || !videoStream?.height) {
+          throw new Error('Could not determine image dimensions from FFprobe output')
+        }
+        imageWidth = videoStream.width
+        imageHeight = videoStream.height
+      } catch (err) {
+        throw new Error(
+          `FFprobe failed to parse image dimensions: ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
+
+      // ── 4. Convert percentage params to pixel values ────────────────────
+      const xPx = Math.round((payload.xPercent / 100) * imageWidth)
+      const yPx = Math.round((payload.yPercent / 100) * imageHeight)
+      const wPx = Math.max(1, Math.round((payload.widthPercent / 100) * imageWidth))
+      const hPx = Math.max(1, Math.round((payload.heightPercent / 100) * imageHeight))
+
+      // Clamp to image bounds to avoid FFmpeg errors on edge-case inputs
+      const safeX = Math.min(xPx, imageWidth - 1)
+      const safeY = Math.min(yPx, imageHeight - 1)
+      const safeW = Math.min(wPx, imageWidth - safeX)
+      const safeH = Math.min(hPx, imageHeight - safeY)
+
+      // ── 5. Run FFmpeg crop ──────────────────────────────────────────────
       await execFileAsync('ffmpeg', [
         '-i', inputPath,
         '-vf', `crop=${safeW}:${safeH}:${safeX}:${safeY}`,
@@ -119,16 +115,17 @@ export const cropImageTask = task({
         outputPath,
       ])
 
-      // ── 5. Read cropped output ──────────────────────────────────────────
+      // ── 6. Read cropped output ──────────────────────────────────────────
       const croppedBuffer = await readFile(outputPath)
 
-      // ── 6. Upload to Transloadit CDN ────────────────────────────────────
+      // ── 7. Upload to Transloadit CDN ────────────────────────────────────
       const transloadit = new Transloadit({
         authKey: transloaditKey,
         authSecret: transloaditSecret,
       })
 
       const assembly = await transloadit.createAssembly({
+        waitForCompletion: true,
         params: {
           steps: {
             ':original': {
@@ -141,14 +138,20 @@ export const cropImageTask = task({
         },
       })
 
-      const uploadedFile = assembly.results?.[':original']?.[0]
+      const fromResults =
+        assembly.results?.[':original']?.[0] ??
+        Object.values(assembly.results ?? {}).find((arr) => arr && arr.length > 0)?.[0]
+
+      const fromUploads = assembly.uploads?.[0]
+
+      const uploadedFile = fromResults ?? fromUploads
       if (!uploadedFile?.ssl_url) {
         throw new Error('Transloadit upload did not return a CDN URL')
       }
 
       return { cdnUrl: uploadedFile.ssl_url }
     } finally {
-      // ── 7. Clean up temp files ──────────────────────────────────────────
+      // ── 8. Clean up temp files ──────────────────────────────────────────
       await unlink(inputPath).catch(() => undefined)
       await unlink(outputPath).catch(() => undefined)
     }
