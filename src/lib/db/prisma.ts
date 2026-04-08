@@ -12,7 +12,20 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient(): PrismaClient {
   const url = process.env.DATABASE_URL
   if (!url) {
-    throw new Error('DATABASE_URL is not set')
+    console.warn('DATABASE_URL is not set. PrismaClient will not be functional.')
+    return new Proxy({} as any, {
+      get(target, prop) {
+        if (prop === 'then') return undefined
+        return new Proxy({}, {
+          get(innerTarget, innerProp) {
+            if (innerProp === 'then') return undefined
+            return () => {
+              throw new Error(`DATABASE_URL is not set. Cannot access prisma.${String(prop)}.${String(innerProp)}`)
+            }
+          }
+        })
+      }
+    })
   }
   const adapter = new PrismaNeon({ connectionString: url })
   return new PrismaClient({ adapter })
