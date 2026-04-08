@@ -194,6 +194,9 @@
   html {
     @apply font-sans;
   }
+  button:not(:disabled) {
+    @apply cursor-pointer;
+  }
 }
 
 /* React Flow (xyflow) Dark Theme Controls */
@@ -202,7 +205,7 @@
 }
 
 .react-flow__controls-button {
-  @apply !bg-[#1A1A1A] !border-none !transition-colors hover:!bg-[#262626] !border-b !border-white/5 last:!border-b-0 !h-8 !w-8 !flex !items-center !justify-center;
+  @apply !bg-[#1A1A1A] !border-none !transition-colors hover:!bg-[#262626] !border-b !border-white/5 last:!border-b-0 !h-8 !w-8 !flex !items-center !justify-center cursor-pointer;
 }
 
 .react-flow__controls-button svg {

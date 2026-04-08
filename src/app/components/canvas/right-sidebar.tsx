@@ -132,7 +132,7 @@ function RunCard({
             onClick={() => onRun(run)}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-zinc-400
               hover:bg-white/5 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40
-              transition-colors"
+              transition-colors cursor-pointer"
           >
             {isThisCardActive ? (
               <Loader2 className="h-3 w-3 animate-spin" />
@@ -154,7 +154,7 @@ function RunCard({
             onClick={() => onLoadAndRun(run)}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-zinc-400
               hover:bg-white/5 hover:text-zinc-200 disabled:cursor-not-allowed disabled:opacity-40
-              transition-colors"
+              transition-colors cursor-pointer"
           >
             <FolderOpen className="h-3 w-3" />
             Load &amp; Run
@@ -275,7 +275,7 @@ export function RightSidebar() {
           title={isCollapsed ? 'Expand run history' : 'Collapse run history'}
           aria-label={isCollapsed ? 'Expand run history' : 'Collapse run history'}
           className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md
-            text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+            text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300 cursor-pointer"
         >
           {isCollapsed ? (
             <ChevronLeft className="h-3.5 w-3.5" />
