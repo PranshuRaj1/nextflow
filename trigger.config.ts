@@ -1,4 +1,5 @@
-import { defineConfig } from "@trigger.dev/sdk/v3";
+import { defineConfig } from "@trigger.dev/sdk";
+import { ffmpeg } from "@trigger.dev/build/extensions/core";
 
 export default defineConfig({
   project: "proj_cdzfrgnyoqfunglvtnve",
@@ -21,6 +22,6 @@ export default defineConfig({
   dirs: ["./src/trigger"],
   build: {
     external: ["transloadit"],
-    apt: ["ffmpeg", "ffprobe"],
+    extensions: [ffmpeg()],
   },
 });
