@@ -65,8 +65,8 @@ export const runLlmTask = task({
         ...(payload.systemPrompt ? { systemInstruction: payload.systemPrompt } : {}),
       })
 
-      // Build the content parts array — text first, then any images
-      const parts: Part[] = [{ text: payload.userMessage }]
+      // Build the content parts array
+      const parts: Part[] = []
 
       for (const imageUrl of payload.imageUrls ?? []) {
         const res = await fetch(imageUrl)
@@ -75,9 +75,18 @@ export const runLlmTask = task({
         }
         const buffer = await res.arrayBuffer()
         const base64 = Buffer.from(buffer).toString('base64')
-        const mimeType = res.headers.get('content-type') ?? 'image/jpeg'
+
+        // Sanitize MIME type (remove charset, etc.) and fallback to image/jpeg
+        let mimeType = res.headers.get('content-type')?.split(';')[0]?.trim() ?? 'image/jpeg'
+        if (mimeType === 'application/octet-stream' || !mimeType.startsWith('image/')) {
+          mimeType = 'image/jpeg'
+        }
+
         parts.push({ inlineData: { data: base64, mimeType } })
       }
+
+      // Add text prompt AFTER images (more reliable for some Gemini versions)
+      parts.push({ text: payload.userMessage })
 
       const result = await model.generateContent(parts)
       const text = result.response.text()

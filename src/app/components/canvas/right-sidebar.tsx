@@ -1,10 +1,22 @@
 'use client'
 
 import { useCallback, useEffect, useState } from 'react'
-import { History, Play, CheckCircle2, XCircle, Clock, Loader2, AlertCircle, FolderOpen } from 'lucide-react'
+import {
+  History,
+  Play,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  Loader2,
+  AlertCircle,
+  FolderOpen,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { useRerunWorkflow } from '@/hooks/use-rerun-workflow'
 import { useExecutionStore } from '@/stores/execution-store'
+import { cn } from '@/lib/utils/cn'
 import type { AppNode, AppEdge } from '@/types/workflow'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -25,10 +37,22 @@ interface RunHistoryItem {
   }
 }
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+const LS_KEY = 'nextflow:sidebar:right'
+
+function readStorage(): boolean {
+  if (typeof window === 'undefined') return false
+  return localStorage.getItem(LS_KEY) === 'true'
+}
+
 // ── Status badge ──────────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: RunHistoryItem['status'] }) {
-  const configs: Record<RunHistoryItem['status'], { icon: any; color: string; bg: string; animate?: string }> = {
+  const configs: Record<
+    RunHistoryItem['status'],
+    { icon: any; color: string; bg: string; animate?: string }
+  > = {
     PENDING:   { icon: Clock,        color: 'text-zinc-400',    bg: 'bg-zinc-500/10' },
     RUNNING:   { icon: Loader2,      color: 'text-blue-400',    bg: 'bg-blue-500/10',    animate: 'animate-spin' },
     COMPLETED: { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
@@ -41,7 +65,9 @@ function StatusBadge({ status }: { status: RunHistoryItem['status'] }) {
   const { icon: Icon, color, bg, animate } = config
 
   return (
-    <div className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium ${bg} ${color}`}>
+    <div
+      className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-medium ${bg} ${color}`}
+    >
       <Icon className={`h-3 w-3 ${animate ?? ''}`} />
       {status.toLowerCase()}
     </div>
@@ -59,7 +85,14 @@ interface RunCardProps {
   onLoadAndRun: (run: RunHistoryItem) => void
 }
 
-function RunCard({ run, isRerunnning, rerunningId, isGlobalRunning, onRun, onLoadAndRun }: RunCardProps) {
+function RunCard({
+  run,
+  isRerunnning,
+  rerunningId,
+  isGlobalRunning,
+  onRun,
+  onLoadAndRun,
+}: RunCardProps) {
   const isThisCardActive = rerunningId === run.id
   const isAnyBusy        = isGlobalRunning || isRerunnning
   const displayName      = run.name ?? run.workflow.name
@@ -85,10 +118,11 @@ function RunCard({ run, isRerunnning, rerunningId, isGlobalRunning, onRun, onLoa
           {run.durationMs ? `${(run.durationMs / 1000).toFixed(1)}s` : '--'}
         </div>
 
-        {/* Action buttons — visible on hover or while active */}
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 data-[active=true]:opacity-100"
-          data-active={isThisCardActive}>
-
+        {/* Action buttons — visible on hover or while this card is active */}
+        <div
+          className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 data-[active=true]:opacity-100"
+          data-active={isThisCardActive}
+        >
           {/* Button 1 — Run (silent re-run, canvas unchanged) */}
           <button
             id={`run-btn-${run.id}`}
@@ -134,21 +168,31 @@ function RunCard({ run, isRerunnning, rerunningId, isGlobalRunning, onRun, onLoa
 // ── Sidebar ───────────────────────────────────────────────────────────────────
 
 /**
- * Workflow run history sidebar.
- *
- * Each card shows:
- *  - Workflow name, run age, status badge, duration
- *  - **Run** button   — silent re-run using stored snapshot (canvas unchanged)
- *  - **Load & Run** button — loads snapshot into canvas then executes
- *
- * History is polled every 5 s so new runs appear automatically.
+ * Run history sidebar — collapsible.
+ * Collapsed: 48 px strip showing the History icon + toggle button only.
+ * Expanded: full run-card list with Run / Load & Run buttons.
+ * Collapse state is persisted via localStorage.
  */
 export function RightSidebar() {
-  const [runs, setRuns]       = useState<RunHistoryItem[]>([])
+  const [runs, setRuns]           = useState<RunHistoryItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
+
+  useEffect(() => {
+    setIsCollapsed(readStorage())
+  }, [])
 
   const { rerunWorkflow, loadAndRunWorkflow, isRerunnning, rerunningId } = useRerunWorkflow()
+
   const isGlobalRunning = useExecutionStore((s) => s.isRunning)
+
+  const toggle = useCallback(() => {
+    setIsCollapsed((prev) => {
+      const next = !prev
+      localStorage.setItem(LS_KEY, String(next))
+      return next
+    })
+  }, [])
 
   // ── Data fetching ─────────────────────────────────────────────────────────
 
@@ -168,16 +212,13 @@ export function RightSidebar() {
 
   useEffect(() => {
     fetchHistory()
-    // Re-fetch every 5 s while the tab is active
     const timer = setInterval(fetchHistory, 5000)
     return () => clearInterval(timer)
   }, [fetchHistory])
 
-  // Refresh history once any re-run finishes so the new record appears quickly
+  // Refresh once a re-run finishes so the new record appears quickly
   useEffect(() => {
-    if (!isRerunnning) {
-      void fetchHistory()
-    }
+    if (!isRerunnning) void fetchHistory()
   }, [isRerunnning, fetchHistory])
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -210,49 +251,96 @@ export function RightSidebar() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  return (
-    <aside className="flex w-[260px] shrink-0 flex-col border-l border-[var(--border-subtle)] bg-[var(--node-bg)] md:w-[300px]">
-      <div className="flex items-center justify-between border-b border-[var(--border-subtle)] px-4 py-3">
-        <div className="flex items-center gap-2">
-          <History className="h-4 w-4 text-[var(--accent)]" aria-hidden />
-          <h2 className="text-sm font-semibold text-zinc-200">Run history</h2>
-        </div>
-        {(isLoading && runs.length > 0) || isGlobalRunning || isRerunnning ? (
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
-        ) : null}
-      </div>
+  const isBusy = (isLoading && runs.length > 0) || isGlobalRunning || isRerunnning
 
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar">
-        {isLoading && runs.length === 0 ? (
-          <div className="flex h-full items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
-          </div>
-        ) : runs.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
-            <div className="rounded-full bg-zinc-500/5 p-3">
-              <History className="h-6 w-6 text-zinc-700" />
-            </div>
-            <p className="text-xs font-medium text-zinc-400">No runs yet.</p>
-            <p className="text-[10px] leading-relaxed text-zinc-600 max-w-[180px]">
-              Executions will appear here with status, duration, and replay options.
-            </p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {runs.map((run) => (
-              <RunCard
-                key={run.id}
-                run={run}
-                isRerunnning={isRerunnning}
-                rerunningId={rerunningId}
-                isGlobalRunning={isGlobalRunning}
-                onRun={handleRun}
-                onLoadAndRun={handleLoadAndRun}
-              />
-            ))}
-          </div>
+  return (
+    <aside
+      className={cn(
+        'relative flex shrink-0 flex-col border-l border-[var(--border-subtle)] bg-[var(--node-bg)]',
+        'transition-[width] duration-[250ms] ease-in-out overflow-hidden',
+        isCollapsed ? 'w-12' : 'w-[260px] md:w-[300px]',
+      )}
+    >
+      {/* ── Header ── */}
+      <div
+        className={cn(
+          'flex shrink-0 items-center border-b border-[var(--border-subtle)]',
+          isCollapsed ? 'flex-col gap-2 px-0 py-3' : 'justify-between px-4 py-3',
+        )}
+      >
+        {/* Toggle button — left of title when expanded, top when collapsed */}
+        <button
+          type="button"
+          onClick={toggle}
+          title={isCollapsed ? 'Expand run history' : 'Collapse run history'}
+          aria-label={isCollapsed ? 'Expand run history' : 'Collapse run history'}
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md
+            text-zinc-500 transition-colors hover:bg-white/5 hover:text-zinc-300"
+        >
+          {isCollapsed ? (
+            <ChevronLeft className="h-3.5 w-3.5" />
+          ) : (
+            <ChevronRight className="h-3.5 w-3.5" />
+          )}
+        </button>
+
+        {/* History icon — always visible */}
+        <div
+          className={cn(
+            'flex items-center gap-2',
+            isCollapsed && 'flex-col',
+          )}
+          title={isCollapsed ? 'Run history' : undefined}
+        >
+          <History
+            className="h-4 w-4 text-[var(--accent)]"
+            aria-hidden
+          />
+          {!isCollapsed && (
+            <h2 className="text-sm font-semibold text-zinc-200">Run history</h2>
+          )}
+        </div>
+
+        {/* Spinner — only visible when expanded */}
+        {!isCollapsed && isBusy && (
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-zinc-500" />
         )}
       </div>
+
+      {/* ── Run list — hidden when collapsed ── */}
+      {!isCollapsed && (
+        <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 custom-scrollbar">
+          {isLoading && runs.length === 0 ? (
+            <div className="flex h-full items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-zinc-600" />
+            </div>
+          ) : runs.length === 0 ? (
+            <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+              <div className="rounded-full bg-zinc-500/5 p-3">
+                <History className="h-6 w-6 text-zinc-700" />
+              </div>
+              <p className="text-xs font-medium text-zinc-400">No runs yet.</p>
+              <p className="text-[10px] leading-relaxed text-zinc-600 max-w-[180px]">
+                Executions will appear here with status, duration, and replay options.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {runs.map((run) => (
+                <RunCard
+                  key={run.id}
+                  run={run}
+                  isRerunnning={isRerunnning}
+                  rerunningId={rerunningId}
+                  isGlobalRunning={isGlobalRunning}
+                  onRun={handleRun}
+                  onLoadAndRun={handleLoadAndRun}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </aside>
   )
 }

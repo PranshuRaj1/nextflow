@@ -102,7 +102,7 @@ export async function POST(
 
     if (run.status !== 'COMPLETED') {
       return NextResponse.json(
-        { error: `Extract frame task failed with status: ${run.status}` },
+        { error: `Extract frame task failed with status: ${run.status}. Details: ${JSON.stringify(run)}` },
         { status: 500 },
       )
     }

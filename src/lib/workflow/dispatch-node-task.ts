@@ -135,7 +135,8 @@ export async function dispatchNodeTask(
       const imageUrls = resolvedInputs['images']
         ? (Array.isArray(resolvedInputs['images'])
           ? resolvedInputs['images']
-          : [resolvedInputs['images']]) as string[]
+          : [resolvedInputs['images']]
+        ).filter((url): url is string => typeof url === 'string' && url.startsWith('http'))
         : []
 
       const res = await fetch('/api/nodes/llm/execute', {

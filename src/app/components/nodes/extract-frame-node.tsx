@@ -3,6 +3,7 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { memo } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
+import { useExecutionStore } from '@/stores/execution-store'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { ExtractFrameNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
@@ -15,14 +16,23 @@ import { cn } from '@/lib/utils/cn'
 function ExtractFrameNodeInner(props: NodeProps<Node<ExtractFrameNodeData, 'extractFrame'>>) {
   const { id, data, selected } = props
   const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
+  const nodeResults = useExecutionStore((s) => s.nodeResults)
   const cVideo = useTargetHandleConnected(id, 'video_url')
   const cTs = useTargetHandleConnected(id, 'timestamp')
+
+  const status = nodeResults[id]?.status
+  const isRunning = status === 'running'
+  const isSuccess = status === 'success'
+  const isError = status === 'failed'
 
   return (
     <div
       className={cn(
         'relative min-w-[240px] max-w-[260px] rounded-xl border border-[var(--node-border)] bg-[var(--node-bg)] p-3 shadow-lg',
         selected && 'ring-1 ring-[var(--accent)]',
+        isRunning && 'nextflow-node-running',
+        isSuccess && 'border-[var(--handle-success)]/50',
+        isError && 'border-red-900/50',
       )}
     >
       <Handle
@@ -59,7 +69,15 @@ function ExtractFrameNodeInner(props: NodeProps<Node<ExtractFrameNodeData, 'extr
         />
       </label>
       {cVideo ? (
-        <p className="mt-2 text-[10px] text-zinc-500">Video URL from connection.</p>
+        <div className="mt-2 flex items-center justify-between">
+          <p className="text-[10px] text-zinc-500">Video URL from connection.</p>
+          {isSuccess && (
+            <span className="text-[10px] font-medium text-[var(--handle-success)]">✓ Frame ready</span>
+          )}
+          {isError && (
+            <span className="text-[10px] font-medium text-red-500">✕ Failed</span>
+          )}
+        </div>
       ) : (
         <p className="mt-2 text-[10px] text-amber-600/90">Connect Upload video or a URL source.</p>
       )}

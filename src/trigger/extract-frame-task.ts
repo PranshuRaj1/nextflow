@@ -130,6 +130,7 @@ export const extractFrameTask = task({
       })
 
       const assembly = await transloadit.createAssembly({
+        waitForCompletion: true,
         params: {
           steps: {
             ':original': {
@@ -142,7 +143,17 @@ export const extractFrameTask = task({
         },
       })
 
-      const uploadedFile = assembly.results?.[':original']?.[0]
+      // With a raw /upload/handle assembly (no processing steps), Transloadit
+      // places files in `uploads[]` rather than `results[':original']`.
+      // Mirror the same fallback chain used in src/lib/transloadit/upload.ts.
+      const fromResults =
+        assembly.results?.[':original']?.[0] ??
+        // Any other result step (shouldn't happen here, but be safe)
+        Object.values(assembly.results ?? {}).find((arr) => arr && arr.length > 0)?.[0]
+
+      const fromUploads = assembly.uploads?.[0]
+
+      const uploadedFile = fromResults ?? fromUploads
       if (!uploadedFile?.ssl_url) {
         throw new Error('Transloadit upload did not return a CDN URL')
       }

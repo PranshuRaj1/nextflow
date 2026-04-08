@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useWorkflowStore } from '@/stores/workflow-store'
+import { useExecutionStore } from '@/stores/execution-store'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { LlmNodeData, UploadImageNodeData } from '@/types/workflow'
 import { GEMINI_MODEL_OPTIONS, SOURCE_HANDLE_ID } from '@/types/workflow'
@@ -34,6 +35,7 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
   const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
+  const nodeResults = useExecutionStore((s) => s.nodeResults)
 
   const sysConn = useTargetHandleConnected(id, 'system_prompt')
   const userConn = useTargetHandleConnected(id, 'user_message')
@@ -78,11 +80,26 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
       .map((e) => {
         const sourceNode = nodes.find((n) => n.id === e.source)
         if (!sourceNode) return null
+
+        // 1. Check the execution store — extractFrame & cropImage nodes
+        //    store their async CDN URL here (set by setNodeSuccess in the
+        //    global run, or by the node's own API call).
+        const execOutput = nodeResults[e.source]?.output as any
+        if (execOutput) {
+          if (typeof execOutput === 'string' && execOutput.startsWith('http')) {
+            return execOutput
+          }
+          if (typeof execOutput.cdnUrl === 'string') {
+            return execOutput.cdnUrl
+          }
+        }
+
+        // 2. Fallback: uploadImage nodes store the URL directly in data.
         const d = sourceNode.data as Partial<UploadImageNodeData>
         return d.imageUrl ?? null
       })
       .filter((url): url is string => url !== null)
-  }, [id, nodes, edges])
+  }, [id, nodes, edges, nodeResults])
 
   /** Start polling a Trigger.dev run until it completes or fails. */
   const startPolling = useCallback(
@@ -196,7 +213,14 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
     updateNodeData,
   ])
 
-  const isRunning = data.status === 'running'
+  const runStatus = nodeResults[id]?.status
+  const isRunning = data.status === 'running' || runStatus === 'running'
+  const isSuccess = data.status === 'success' || runStatus === 'success'
+  const isError = data.status === 'error' || runStatus === 'failed'
+
+  const output = nodeResults[id]?.output as any
+  const displayResult = typeof output === 'string' ? output : output?.text || data.resultText
+  const displayError = typeof nodeResults[id]?.error === 'string' ? nodeResults[id]?.error : data.errorMessage
 
   return (
     <div
@@ -204,6 +228,8 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
         'relative min-w-[280px] max-w-[320px] rounded-xl border border-[var(--node-border)] bg-[var(--node-bg)] p-3 shadow-lg',
         selected && 'ring-1 ring-[var(--accent)]',
         isRunning && 'nextflow-node-running',
+        isSuccess && 'border-[var(--handle-success)]/50',
+        isError && 'border-red-900/50',
       )}
     >
       <p className="mb-2 text-xs font-medium uppercase tracking-wide text-zinc-400">Run any LLM</p>
@@ -307,11 +333,11 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
         {imgConn && <p className="mb-2 text-[10px] text-zinc-400">🖼️ Image connected</p>}
         {isRunning ? (
           <p className="text-xs text-zinc-400">Running…</p>
-        ) : data.status === 'error' && data.errorMessage ? (
-          <p className="text-xs text-red-400">{data.errorMessage}</p>
-        ) : data.resultText ? (
+        ) : isError && displayError ? (
+          <p className="text-xs text-red-400">{displayError}</p>
+        ) : displayResult ? (
           <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-zinc-200">
-            {data.resultText}
+            {displayResult}
           </p>
         ) : (
           <p className="text-xs text-zinc-500">Output appears here after execution.</p>
