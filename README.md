@@ -83,6 +83,111 @@ This traces the numbered sequence of a full workflow execution. The order is una
 
 ---
 
+## API Endpoints
+
+Our centralized API acts as a dispatcher connecting the frontend with our background tasks (Trigger.dev) and the database (Neon + Prisma).
+
+### Workflow API
+
+- `POST /api/workflow/execute` 
+  - Validates and saves workflow nodes/edges into a `WorkflowRun`. 
+  - Iterates over the graph and triggers tasks.
+- `POST /api/workflow/execute-node`
+  - Internal runner designed to dynamically invoke the correct node logic (e.g., executing the Gemini LLM or cropping an image).
+- `GET /api/workflow/history`
+  - Fetches past workflow executions saved in the backend for the currently authenticated user.
+- `GET /api/workflow/run-status/[id]`
+  - Polls for the current status of a given workflow run, returning its states to keep the client UI updated.
+- `GET /api/workflow/[workflowId]`
+  - Retrieves a specific saved workflow snapshot including node state and layout for re-running workflows.
+
+### Node / Task Triggers
+
+These route endpoints act as bridges between the Next.js client app and the Trigger.dev background workers.
+- `POST /api/nodes/crop-image/execute`: Triggers the background image crop action.
+- `POST /api/nodes/extract-frame/execute`: Triggers the background video frame extraction.
+- `POST /api/nodes/llm/execute`: Triggers the background LLM task.
+
+### Miscellaneous API
+- `POST /api/transloadit/params`
+  - Generates signed parameters allowing the frontend to securely interact and bypass our API entirely to upload direct to Transloadit's CDN.
+
+---
+
+## Trigger.dev Background Tasks
+
+All intensive processing tasks operate asynchronously in an external Trigger.dev instance. We use the `@trigger.dev/sdk` approach leveraging payload validation.
+
+### 1. `crop-image-task`
+
+This task takes an image and trims it to specific percentages, offloading image-handling via Transloadit/FFmpeg assembly definitions.
+
+**Trigger Payload:**
+```json
+{
+  "nodeId": "8db7e8cb-2405-4ce6-902a-1de7670641f0",
+  "imageUrl": "https://pub-6d24529af5b6438f895cf5350a9bd511.r2.dev/...",
+  "xPercent": 0,
+  "yPercent": 0,
+  "widthPercent": 50,
+  "heightPercent": 50
+}
+```
+
+**Task Output:**
+```json
+{
+  "cdnUrl": "https://pub-6d24529af5b6438f895cf5350a9bd511.r2.dev/..."
+}
+```
+
+### 2. `extract-frame-task`
+
+Given a video URL and a timestamp (e.g., "0"), this task utilizes our backend connection to FFmpeg inside Transloadit assembly routines to retrieve a picture frame.
+
+**Trigger Payload:**
+```json
+{
+  "nodeId": "ad79207b-24c2-4e79-88ec-7dcaf8ac05ac",
+  "videoUrl": "https://pub-e8fef8c0e03b44acb340577811800829.r2.dev/...",
+  "timestamp": "0"
+}
+```
+
+**Task Output:**
+```json
+{
+  "cdnUrl": "https://pub-6d24529af5b6438f895cf5350a9bd511.r2.dev/..."
+}
+```
+
+### 3. `run-llm-task`
+
+This long-running task encapsulates complex multimodal calls to the `gemini-2.5-flash` model, ensuring API timeouts don't disrupt inference actions.
+
+**Trigger Payload:**
+```json
+{
+  "nodeId": "892f83f2-6bd2-4add-85db-8616f0015eda",
+  "runId": "cmnq44gws0007041463bnlr6q",
+  "model": "gemini-2.5-flash",
+  "userMessage": "tell me about this image.",
+  "imageUrls": [
+    "https://pub-6d24529af5b6438f895cf5350a9bd511.r2.dev/..."
+  ]
+}
+```
+
+**Task Output:**
+```json
+{
+  "text": "This image features a **severely underexposed portrait of a young male**, appearing largely as a silhouette against a brighter bac...",
+  "model": "gemini-2.5-flash"
+}
+```
+
+---
+
 ## Getting Started
 
 ```bash
@@ -98,6 +203,9 @@ npx prisma migrate dev
 
 # Start development server
 npm run dev
+
+# Start Trigger.dev background worker (in a separate terminal)
+npx trigger.dev@latest dev
 ```
 
 ---
