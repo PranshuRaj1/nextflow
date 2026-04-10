@@ -168,3 +168,48 @@ export function IconChevronRight({ className }: { className?: string }) {
     </svg>
   )
 }
+
+export function IconLipsync({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect width="18" height="18" rx="4" fill="#18181B" />
+      <path d="M9 4.5V9.5M9 9.5L7.5 8M9 9.5L10.5 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.5 10.5C6.5 11.5 7.5 12.5 9 12.5C10.5 12.5 11.5 11.5 11.5 10.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+      <path d="M9 12.5V14.5M6.5 14.5H11.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function IconMotion({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect width="18" height="18" rx="4" fill="#BEF264" />
+      <path d="M9 5C9.55228 5 10 4.55228 10 4C10 3.44772 9.55228 3 9 3C8.44772 3 8 3.44772 8 4C8 4.55228 8.44772 5 9 5Z" fill="#18181B" />
+      <path d="M9 6V11.5M9 11.5L7 15M9 11.5L11 15M6 8H12" stroke="#18181B" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function Icon3D({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect width="18" height="18" rx="4" fill="#27272A" />
+      <path d="M9 4.5L13.5 7V11L9 13.5L4.5 11V7L9 4.5Z" stroke="white" strokeWidth="1.2" strokeLinejoin="round" opacity="0.6" />
+      <path d="M4.5 7L9 9.5L13.5 7M9 9.5V13.5" stroke="white" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
+export function IconRestyle({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <rect width="18" height="18" rx="4" fill="#FDBA74" />
+      <rect x="5" y="4" width="8" height="10" rx="1" stroke="#18181B" strokeWidth="1.2" />
+      <path d="M5 6H13M5 9H13M5 12H13" stroke="#18181B" strokeWidth="0.8" />
+      <circle cx="6.5" cy="5" r="0.4" fill="#18181B" />
+      <circle cx="11.5" cy="5" r="0.4" fill="#18181B" />
+      <circle cx="6.5" cy="13" r="0.4" fill="#18181B" />
+      <circle cx="11.5" cy="13" r="0.4" fill="#18181B" />
+    </svg>
+  )
+}
