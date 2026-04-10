@@ -35,6 +35,13 @@ interface ExecutionStoreState {
   currentRunId: string | null
 
   /**
+   * ID of the most recent completed run. Unlike `currentRunId`, this is
+   * NOT cleared by `finishRun()`, so `retryNode` can still pass a valid
+   * runId to `dispatchNodeTask` after the run finishes.
+   */
+  lastRunId: string | null
+
+  /**
    * Live map of every node's execution result, keyed by nodeId.
    * Updated in real-time as each node moves through pending → running → success/failed.
    * Drives the visual glow / status badge on each node card.
@@ -84,6 +91,13 @@ interface ExecutionStoreState {
   finishRun: () => void
 
   /**
+   * Resets a single failed node back to `pending` so the execution hook
+   * can re-dispatch just that node without restarting the whole workflow.
+   * Only the targeted node's result is mutated.
+   */
+  retryNode: (nodeId: string) => void
+
+  /**
    * Fully resets the store to its initial state.
    * Called before starting a brand-new run or when the user navigates away.
    */
@@ -93,6 +107,7 @@ interface ExecutionStoreState {
 const initialState = {
   isRunning: false,
   currentRunId: null,
+  lastRunId: null,
   nodeResults: {},
 }
 
@@ -141,7 +156,20 @@ export const useExecutionStore = create<ExecutionStoreState>((set) => ({
     })),
 
   finishRun: () =>
-    set({ isRunning: false, currentRunId: null }),
+    set((s) => ({
+      isRunning: false,
+      currentRunId: null,
+      // Preserve lastRunId so retryNode can still reference the completed run
+      lastRunId: s.currentRunId ?? s.lastRunId,
+    })),
+
+  retryNode: (nodeId) =>
+    set((s) => ({
+      nodeResults: {
+        ...s.nodeResults,
+        [nodeId]: { status: 'pending' },
+      },
+    })),
 
   reset: () => set(initialState),
 }))

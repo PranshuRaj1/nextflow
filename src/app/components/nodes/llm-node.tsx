@@ -2,7 +2,7 @@
 
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { Loader2, Play } from 'lucide-react'
+import { Loader2, Play, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import {
@@ -14,9 +14,11 @@ import {
 } from '@/components/ui/select'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useExecutionStore } from '@/stores/execution-store'
+import { useWorkflowExecution } from '@/hooks/use-workflow-execution'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { LlmNodeData, UploadImageNodeData } from '@/types/workflow'
 import { GEMINI_MODEL_OPTIONS, SOURCE_HANDLE_ID } from '@/types/workflow'
+import { getNodeErrorHint } from '@/lib/workflow/error-hints'
 import { cn } from '@/lib/utils/cn'
 
 const handleCls = '!h-2.5 !w-2.5 !border-2 !border-[var(--accent)] !bg-zinc-950'
@@ -36,6 +38,7 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
   const edges = useWorkflowStore((s) => s.edges)
   const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
   const nodeResults = useExecutionStore((s) => s.nodeResults)
+  const { retryNode, isRunning: isGlobalRunning } = useWorkflowExecution()
 
   const sysConn = useTargetHandleConnected(id, 'system_prompt')
   const userConn = useTargetHandleConnected(id, 'user_message')
@@ -217,6 +220,7 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
   const isRunning = data.status === 'running' || runStatus === 'running'
   const isSuccess = data.status === 'success' || runStatus === 'success'
   const isError = data.status === 'error' || runStatus === 'failed'
+  const isSkipped = runStatus === 'skipped'
 
   const output = nodeResults[id]?.output as any
   const displayResult = typeof output === 'string' ? output : output?.text || data.resultText
@@ -333,8 +337,27 @@ function LlmNodeInner(props: NodeProps<Node<LlmNodeData, 'llm'>>) {
         {imgConn && <p className="mb-2 text-[10px] text-zinc-400">🖼️ Image connected</p>}
         {isRunning ? (
           <p className="text-xs text-zinc-400">Running…</p>
+        ) : isSkipped ? (
+          <p className="text-xs text-zinc-500 italic">Skipped</p>
         ) : isError && displayError ? (
-          <p className="text-xs text-red-400">{displayError}</p>
+          <div className="flex flex-col gap-2">
+            <div className="rounded bg-red-950/30 p-2 text-xs text-red-200 border border-red-900/50">
+              {displayError}
+              <p className="mt-1 text-[10px] text-red-400/80">
+                {getNodeErrorHint('llm', displayError)}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 w-full text-xs"
+              onClick={() => retryNode(id)}
+              disabled={isGlobalRunning}
+            >
+              <RotateCcw className="mr-1.5 h-3 w-3" />
+              Retry this node
+            </Button>
+          </div>
         ) : displayResult ? (
           <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-zinc-200">
             {displayResult}

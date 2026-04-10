@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { tasks, runs } from '@trigger.dev/sdk/v3'
 import type { runLlmTask } from '@/trigger/run-llm-task'
 import type { RunLlmResult } from '@/types/tasks'
+import { formatTaskError } from '@/lib/utils'
 
 // ── Request schema ──────────────────────────────────────────────────────────
 
@@ -94,8 +95,11 @@ export async function POST(
     }
 
     if (run.status !== 'COMPLETED') {
+      // Extract specific error message if available
+      const rawError = (run as any).error?.message || (run as any).error?.name || `LLM task failed with status: ${run.status}`
+      const errorMessage = formatTaskError(rawError)
       return NextResponse.json(
-        { error: `LLM task failed with status: ${run.status}` },
+        { error: errorMessage },
         { status: 500 },
       )
     }

@@ -3,10 +3,12 @@
 import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { memo } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
+import { useExecutionStore } from '@/stores/execution-store'
 import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { CropImageNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
 import { Input } from '@/components/ui/input'
+import { getNodeErrorHint } from '@/lib/workflow/error-hints'
 import { cn } from '@/lib/utils/cn'
 
 const pct = ['image_url', 'x_percent', 'y_percent', 'width_percent', 'height_percent'] as const
@@ -46,6 +48,7 @@ function PercentField({
 function CropImageNodeInner(props: NodeProps<Node<CropImageNodeData, 'cropImage'>>) {
   const { id, data, selected } = props
   const updateNodeData = useWorkflowStore((s) => s.updateNodeData)
+  const nodeResults = useExecutionStore((s) => s.nodeResults)
 
   const cImage = useTargetHandleConnected(id, 'image_url')
   const cX = useTargetHandleConnected(id, 'x_percent')
@@ -54,11 +57,21 @@ function CropImageNodeInner(props: NodeProps<Node<CropImageNodeData, 'cropImage'
   const cH = useTargetHandleConnected(id, 'height_percent')
   const conn = { image_url: cImage, x_percent: cX, y_percent: cY, width_percent: cW, height_percent: cH }
 
+  const status = nodeResults[id]?.status ?? 'idle'
+  const isRunning = status === 'running'
+  const isSuccess = status === 'success'
+  const isError = status === 'failed'
+  const isSkipped = status === 'skipped'
+  const errorMessage = nodeResults[id]?.error
+
   return (
     <div
       className={cn(
-        'relative min-w-[260px] max-w-[280px] rounded-xl border border-[var(--node-border)] bg-[var(--node-bg)] p-3 shadow-lg',
+        'relative min-w-[260px] max-w-[280px] rounded-xl border border-[var(--node-border)] bg-[var(--node-bg)] p-3 shadow-lg transition-all',
         selected && 'ring-1 ring-[var(--accent)]',
+        isRunning && 'nextflow-node-running',
+        isSuccess && 'border-[var(--handle-success)]/50',
+        isError && 'border-red-900/50',
       )}
     >
       {pct.map((hid, i) => (
@@ -101,6 +114,21 @@ function CropImageNodeInner(props: NodeProps<Node<CropImageNodeData, 'cropImage'
           onChange={(v) => updateNodeData(id, { heightPercent: v })}
         />
       </div>
+
+      {isError && errorMessage && (
+        <div className="mt-3 rounded border border-red-500/20 bg-red-500/10 p-2">
+          <p className="text-xs font-medium text-red-400">{errorMessage}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {getNodeErrorHint('cropImage', errorMessage)}
+          </p>
+        </div>
+      )}
+
+      {isSkipped && (
+        <p className="mt-3 text-xs italic text-zinc-500">
+          Skipped — upstream node failed
+        </p>
+      )}
 
       <Handle
         id={SOURCE_HANDLE_ID}

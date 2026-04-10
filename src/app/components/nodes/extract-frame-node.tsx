@@ -8,6 +8,7 @@ import { useTargetHandleConnected } from '@/hooks/use-handle-connected'
 import type { ExtractFrameNodeData } from '@/types/workflow'
 import { SOURCE_HANDLE_ID } from '@/types/workflow'
 import { Input } from '@/components/ui/input'
+import { getNodeErrorHint } from '@/lib/workflow/error-hints'
 import { cn } from '@/lib/utils/cn'
 
 /**
@@ -20,10 +21,12 @@ function ExtractFrameNodeInner(props: NodeProps<Node<ExtractFrameNodeData, 'extr
   const cVideo = useTargetHandleConnected(id, 'video_url')
   const cTs = useTargetHandleConnected(id, 'timestamp')
 
-  const status = nodeResults[id]?.status
+  const status = nodeResults[id]?.status ?? 'idle'
   const isRunning = status === 'running'
   const isSuccess = status === 'success'
   const isError = status === 'failed'
+  const isSkipped = status === 'skipped'
+  const errorMessage = nodeResults[id]?.error
 
   return (
     <div
@@ -74,12 +77,24 @@ function ExtractFrameNodeInner(props: NodeProps<Node<ExtractFrameNodeData, 'extr
           {isSuccess && (
             <span className="text-[10px] font-medium text-[var(--handle-success)]">✓ Frame ready</span>
           )}
-          {isError && (
-            <span className="text-[10px] font-medium text-red-500">✕ Failed</span>
-          )}
         </div>
       ) : (
         <p className="mt-2 text-[10px] text-amber-600/90">Connect Upload video or a URL source.</p>
+      )}
+
+      {isError && errorMessage && (
+        <div className="mt-3 rounded border border-red-500/20 bg-red-500/10 p-2">
+          <p className="text-xs font-medium text-red-400">{errorMessage}</p>
+          <p className="mt-0.5 text-xs text-zinc-500">
+            {getNodeErrorHint('extractFrame', errorMessage)}
+          </p>
+        </div>
+      )}
+
+      {isSkipped && (
+        <p className="mt-3 text-xs italic text-zinc-500">
+          Skipped — upstream node failed
+        </p>
       )}
 
       <Handle

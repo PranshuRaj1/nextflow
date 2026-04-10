@@ -8,6 +8,7 @@ import { SOURCE_HANDLE_ID } from '@/types/workflow'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils/cn'
 import { transloaditUpload } from '@/lib/transloadit/upload'
+import { getNodeErrorHint } from '@/lib/workflow/error-hints'
 
 const ACCEPT = 'video/mp4,video/quicktime,video/webm,video/x-m4v,.mp4,.mov,.webm,.m4v'
 
@@ -121,9 +122,14 @@ function UploadVideoNodeInner(props: NodeProps<Node<UploadVideoNodeData, 'upload
       </Button>
 
       {/* Error message */}
-      {data.errorMessage ? (
-        <p className="mb-1 text-xs text-red-400">{data.errorMessage}</p>
-      ) : null}
+      {data.errorMessage && (
+        <div className="mb-3 rounded border border-red-500/20 bg-red-500/10 p-2">
+          <p className="text-xs font-medium text-red-400">{data.errorMessage}</p>
+          <p className="mt-0.5 text-[10px] text-zinc-500">
+            {getNodeErrorHint('uploadVideo', data.errorMessage)}
+          </p>
+        </div>
+      )}
 
       {/* Preview */}
       <div className="relative mt-1 aspect-video w-full overflow-hidden rounded-lg bg-black">

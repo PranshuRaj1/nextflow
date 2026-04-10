@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback } from 'react'
+import { toast } from 'sonner'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useExecutionStore } from '@/stores/execution-store'
 import type { AppEdge } from '@/types/workflow'
@@ -139,11 +140,32 @@ export function useWorkflowExecution() {
       )
     }
 
-    // ── 4. All waves complete ───────────────────────────────────────────────
+    // ── 4. All waves complete ───────────────────────────────────────
     finishRun()
+
+    // ── 5. Workflow-level toast ───────────────────────────────────
+    // Read finalResults AFTER finishRun so statuses are settled
+    const finalResults = useExecutionStore.getState().nodeResults
+    const failedCount = Object.values(finalResults).filter(
+      (r) => r.status === 'failed',
+    ).length
+    const skippedCount = Object.values(finalResults).filter(
+      (r) => r.status === 'skipped',
+    ).length
+
+    if (failedCount > 0) {
+      toast.error(
+        `Workflow completed with ${failedCount} failed node${failedCount > 1 ? 's' : ''}` +
+          (skippedCount > 0 ? ` and ${skippedCount} skipped` : ''),
+        { description: 'Click the red nodes to see what went wrong.' },
+      )
+    } else {
+      toast.success('Workflow completed successfully')
+    }
   }, [
     isRunning,
     nodes,
+    edges,
     workflowId,
     workflowName,
     startRun,
@@ -154,5 +176,49 @@ export function useWorkflowExecution() {
     finishRun,
   ])
 
-  return { runWorkflow, isRunning }
+  /**
+   * Retries a single failed node without re-running the whole workflow.
+   *
+   * Reads upstream outputs that are still in `nodeResults` from the previous
+   * run (any node in `success` state). Uses `lastRunId` — which `finishRun()`
+   * preserves — so `dispatchNodeTask` gets a valid runId even after the run
+   * has ended.
+   *
+   * Only callable when `isRunning === false`.
+   */
+  const retryNode = useCallback(
+    async (nodeId: string) => {
+      if (isRunning) return
+
+      const node = nodes.find((n) => n.id === nodeId)
+      if (!node) return
+
+      const storeState = useExecutionStore.getState()
+      const runId = storeState.lastRunId ?? ''
+
+      // Rebuild resolvedMap from the successful outputs still in the store
+      const resolvedMap = new Map<string, unknown>()
+      for (const [id, result] of Object.entries(storeState.nodeResults)) {
+        if (result.status === 'success') {
+          resolvedMap.set(id, result.output)
+        }
+      }
+
+      const resolvedInputs = collectInputs(nodeId, edges, resolvedMap)
+
+      useExecutionStore.getState().setNodeRunning(nodeId)
+
+      try {
+        const output = await dispatchNodeTask(node, resolvedInputs, runId)
+        useExecutionStore.getState().setNodeSuccess(nodeId, output)
+        toast.success('Node retried successfully')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error'
+        useExecutionStore.getState().setNodeFailed(nodeId, message)
+      }
+    },
+    [isRunning, nodes, edges],
+  )
+
+  return { runWorkflow, retryNode, isRunning }
 }
