@@ -1,13 +1,14 @@
 'use client'
 
 import { ReactFlowProvider } from '@xyflow/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { LeftSidebar } from '@/app/components/canvas/left-sidebar'
 import { RightSidebar } from '@/app/components/canvas/right-sidebar'
 import { TopBar } from '@/app/components/canvas/top-bar'
 import { WorkflowCanvas } from '@/app/components/canvas/workflow-canvas'
 import { WorkflowErrorBoundary } from '@/app/components/canvas/workflow-error-boundary'
+import WorkflowPresetsModal from '@/app/components/canvas/WorkflowPresetsModal'
 
 function useWorkflowKeyboardShortcuts() {
   useEffect(() => {
@@ -44,6 +45,12 @@ function useWorkflowKeyboardShortcuts() {
 export function WorkflowShell() {
   useWorkflowKeyboardShortcuts()
 
+  // Show the presets picker only on a fresh (empty) canvas.
+  // Initialised lazily so it reads the store's node count at mount time.
+  const [showPresets, setShowPresets] = useState(
+    () => useWorkflowStore.getState().nodes.length === 0,
+  )
+
   return (
     <ReactFlowProvider>
       <div className="flex h-[100dvh] flex-col overflow-hidden bg-[var(--canvas-bg)] text-[var(--foreground)]">
@@ -55,10 +62,13 @@ export function WorkflowShell() {
             <LeftSidebar />
           </WorkflowErrorBoundary>
           <WorkflowErrorBoundary label="canvas">
-            <div className="relative min-h-0 min-w-0 flex-1">
-              <WorkflowCanvas />
-            </div>
-          </WorkflowErrorBoundary>
+              <div className="relative min-h-0 min-w-0 flex-1">
+                <WorkflowCanvas />
+                {showPresets && (
+                  <WorkflowPresetsModal onDismiss={() => setShowPresets(false)} />
+                )}
+              </div>
+            </WorkflowErrorBoundary>
           <WorkflowErrorBoundary label="history">
             <RightSidebar />
           </WorkflowErrorBoundary>

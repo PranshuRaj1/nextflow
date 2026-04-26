@@ -1,0 +1,159 @@
+/* Workflow Presets Overlay — scoped styles for the sample-workflow picker */
+
+.workflow-presets-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(2px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  pointer-events: auto;
+}
+
+.workflow-presets-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0;
+}
+
+.workflow-presets-hint kbd {
+  background: rgba(255, 255, 255, 0.08);
+  border: 0.5px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  padding: 2px 10px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+}
+
+.workflow-presets-row {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 4px 8px 8px;
+  scrollbar-width: none;
+  max-width: min(90vw, 980px);
+}
+.workflow-presets-row::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Preset cards ───────────────────────────────────────────── */
+
+.preset-card {
+  flex: 0 0 152px;
+  background: #1a1a1a;
+  border: 0.5px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+  padding: 0;
+}
+.preset-card:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.preset-card--empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 148px;
+  gap: 8px;
+  border-style: dashed;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  font-weight: 500;
+}
+.preset-card--empty:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Thumbnail area ─────────────────────────────────────────── */
+
+.preset-card__thumb {
+  width: 100%;
+  height: 88px;
+  background: #111111;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 10px;
+}
+
+/* Mini node chips inside the thumbnail */
+.preset-thumb-node {
+  border-radius: 5px;
+  padding: 3px 7px;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 0.5px solid;
+}
+.preset-thumb-node--blue   { background: #1a2540; border-color: #2d4a8a; color: #6b9fff; }
+.preset-thumb-node--green  { background: #1e3a2e; border-color: #2d6b4a; color: #4eca8b; }
+.preset-thumb-node--accent { background: #1e3a2e; border-color: #2d6b4a; color: #4eca8b; }
+.preset-thumb-node--purple { background: #2a1a40; border-color: #5a3a8a; color: #a78bfa; }
+.preset-thumb-node--amber  { background: #2d2010; border-color: #7a5520; color: #fbbf24; }
+.preset-thumb-node--default {
+  background: #2a2a2a;
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.55);
+}
+
+/* Connector line between chips */
+.preset-thumb-edge {
+  width: 14px;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.22);
+  flex-shrink: 0;
+}
+
+/* ── Card body ──────────────────────────────────────────────── */
+
+.preset-card__body  { padding: 8px 10px 10px; }
+.preset-card__title {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  margin: 0 0 3px;
+}
+.preset-card__desc  {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* ── Dismiss button ─────────────────────────────────────────── */
+
+.workflow-presets-dismiss {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 12px;
+  padding: 6px 18px;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.workflow-presets-dismiss:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: rgba(255, 255, 255, 0.75);
+  border-color: rgba(255, 255, 255, 0.3);
+}
