@@ -33,7 +33,7 @@ function NewWorkflowButton() {
       const res = await fetch('/api/workflows', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to create workflow')
       const { id } = (await res.json()) as { id: string }
-      router.push(`/workflow/${id}`)
+      router.push(`/workflow/${id}?new=1`)
     } catch {
       setIsCreating(false)
     }
@@ -206,7 +206,7 @@ function NewWorkflowCardButton() {
       const res = await fetch('/api/workflows', { method: 'POST' })
       if (!res.ok) throw new Error('Failed to create workflow')
       const { id } = (await res.json()) as { id: string }
-      router.push(`/workflow/${id}`)
+      router.push(`/workflow/${id}?new=1`)
     } catch {
       setIsCreating(false)
     }

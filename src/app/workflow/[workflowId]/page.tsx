@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { WorkflowShell } from '@/app/components/canvas/workflow-shell'
 import type { AppNode, AppEdge } from '@/types/workflow'
@@ -18,6 +18,10 @@ export const dynamic = 'force-dynamic'
 export default function WorkflowEditorPage() {
   const params = useParams<{ workflowId: string }>()
   const workflowId = params.workflowId
+  const searchParams = useSearchParams()
+  // ?new=1 is appended by the dashboard when creating a brand-new workflow so
+  // the presets modal still appears, but NOT when opening an existing workflow.
+  const isNew = searchParams.get('new') === '1'
   const loaded = useRef(false)
 
   useEffect(() => {
@@ -62,5 +66,5 @@ export default function WorkflowEditorPage() {
     void load()
   }, [workflowId])
 
-  return <WorkflowShell showPresetsOnMount={false} />
+  return <WorkflowShell showPresetsOnMount={isNew} />
 }
