@@ -34,15 +34,18 @@
 }
 
 .workflow-presets-row {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 152px));
+  width: min(480px, 90vw);
   gap: 12px;
-  overflow-x: auto;
   padding: 4px 8px 8px;
-  scrollbar-width: none;
-  max-width: min(90vw, 980px);
 }
-.workflow-presets-row::-webkit-scrollbar {
-  display: none;
+
+@media (max-width: 600px) {
+  .workflow-presets-row {
+    grid-template-columns: repeat(2, minmax(0, 152px));
+    width: min(320px, 90vw);
+  }
 }
 
 /* ── Preset cards ───────────────────────────────────────────── */
