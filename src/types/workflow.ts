@@ -52,10 +52,20 @@ export type CropImageNodeData = {
   yPercent: string
   widthPercent: string
   heightPercent: string
+  /** Status of the individual (standalone) Run button. */
+  status: 'idle' | 'running' | 'success' | 'error'
+  /** CDN URL of the cropped image after a successful standalone run. */
+  resultUrl?: string
+  errorMessage?: string
 }
 
 export type ExtractFrameNodeData = {
   timestamp: string
+  /** Status of the individual (standalone) Run button. */
+  status: 'idle' | 'running' | 'success' | 'error'
+  /** CDN URL of the extracted frame after a successful standalone run. */
+  resultUrl?: string
+  errorMessage?: string
 }
 
 export type AppNodeData =
@@ -114,8 +124,9 @@ export function defaultNodeData(type: AppNodeType): AppNodeData {
         yPercent: '0',
         widthPercent: '100',
         heightPercent: '100',
+        status: 'idle',
       }
     case 'extractFrame':
-      return { timestamp: '0' }
+      return { timestamp: '0', status: 'idle' }
   }
 }

@@ -43,7 +43,7 @@ const PRESETS: Preset[] = [
       },
     ],
     edges: [
-      { id: 'e1-2', source: '1', target: '2', type: 'purple', animated: true },
+      { id: 'e1-2', source: '1', sourceHandle: 'out', target: '2', targetHandle: 'user_message', type: 'purple', animated: true },
     ],
   },
   {
@@ -61,11 +61,11 @@ const PRESETS: Preset[] = [
         id: '2',
         type: 'cropImage',
         position: { x: 380, y: 200 },
-        data: { xPercent: '0', yPercent: '0', widthPercent: '100', heightPercent: '100' },
+        data: { xPercent: '0', yPercent: '0', widthPercent: '100', heightPercent: '100', status: 'idle' },
       },
     ],
     edges: [
-      { id: 'e1-2', source: '1', target: '2', type: 'purple', animated: true },
+      { id: 'e1-2', source: '1', sourceHandle: 'out', target: '2', targetHandle: 'image_url', type: 'purple', animated: true },
     ],
   },
   {
@@ -83,11 +83,11 @@ const PRESETS: Preset[] = [
         id: '2',
         type: 'extractFrame',
         position: { x: 380, y: 200 },
-        data: { timestamp: '0' },
+        data: { timestamp: '0', status: 'idle' },
       },
     ],
     edges: [
-      { id: 'e1-2', source: '1', target: '2', type: 'purple', animated: true },
+      { id: 'e1-2', source: '1', sourceHandle: 'out', target: '2', targetHandle: 'video_url', type: 'purple', animated: true },
     ],
   },
   {
@@ -127,8 +127,8 @@ const PRESETS: Preset[] = [
       },
     ],
     edges: [
-      { id: 'e1-2', source: '1', target: '2', type: 'purple', animated: true },
-      { id: 'e1-3', source: '1', target: '3', type: 'purple', animated: true },
+      { id: 'e1-2', source: '1', sourceHandle: 'out', target: '2', targetHandle: 'user_message', type: 'purple', animated: true },
+      { id: 'e1-3', source: '1', sourceHandle: 'out', target: '3', targetHandle: 'user_message', type: 'purple', animated: true },
     ],
   },
   {
@@ -156,7 +156,7 @@ const PRESETS: Preset[] = [
       },
     ],
     edges: [
-      { id: 'e1-2', source: '1', target: '2', type: 'purple', animated: true },
+      { id: 'e1-2', source: '1', sourceHandle: 'out', target: '2', targetHandle: 'images', type: 'purple', animated: true },
     ],
   },
 ]
