@@ -42,14 +42,12 @@ function useWorkflowKeyboardShortcuts() {
 /**
  * Full-height workflow builder: Clerk-protected route mounts this client shell.
  */
-export function WorkflowShell() {
+export function WorkflowShell({ showPresetsOnMount = false }: { showPresetsOnMount?: boolean }) {
   useWorkflowKeyboardShortcuts()
 
-  // Show the presets picker only on a fresh (empty) canvas.
-  // Initialised lazily so it reads the store's node count at mount time.
-  const [showPresets, setShowPresets] = useState(
-    () => useWorkflowStore.getState().nodes.length === 0,
-  )
+  // Show the presets picker only on explicitly fresh (new) canvases.
+  // Saved workflows pass false so the modal never appears over existing work.
+  const [showPresets, setShowPresets] = useState(showPresetsOnMount)
 
   return (
     <ReactFlowProvider>

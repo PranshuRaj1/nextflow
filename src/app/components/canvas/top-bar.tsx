@@ -4,20 +4,19 @@
 
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
-import { Loader2, Redo2, Save, Undo2, ZoomOut } from 'lucide-react'
+import { Check, Loader2, Redo2, Save, Undo2, ZoomOut } from 'lucide-react'
 import { useReactFlow } from '@xyflow/react'
+import { useCallback, useState } from 'react'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useWorkflowExecution } from '@/hooks/use-workflow-execution'
 
+type SaveState = 'idle' | 'saving' | 'saved'
+
 /**
- * Workflow chrome: name, save (stub), undo/redo, fit view, run, Clerk user.
- *
- * Phase 4 changes:
- * - Run button wired to `useWorkflowExecution`.
- * - Run button shows a spinner and "Running…" label while execution is active.
- * - Run button disabled when `isRunning` or no nodes on canvas.
+ * Workflow chrome: name, save, undo/redo, fit view, run, Clerk user.
  */
 export function TopBar() {
   const workflowName = useWorkflowStore((s) => s.workflowName)
@@ -31,15 +30,64 @@ export function TopBar() {
 
   const { runWorkflow, isRunning } = useWorkflowExecution()
 
+  const [saveState, setSaveState] = useState<SaveState>('idle')
   const hasNodes = nodes.length > 0
+
+  const handleSave = useCallback(async () => {
+    const { workflowId, workflowName: name, nodes: n, edges: e } =
+      useWorkflowStore.getState()
+
+    setSaveState('saving')
+
+    try {
+      if (workflowId) {
+        // ── Update existing workflow ──────────────────────────────────────
+        const res = await fetch(`/api/workflow/${workflowId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, nodes: n, edges: e }),
+        })
+        if (!res.ok) throw new Error('Save failed')
+      } else {
+        // ── Create new workflow, then store the returned ID ───────────────
+        const res = await fetch('/api/workflows', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+        })
+        if (!res.ok) throw new Error('Create failed')
+        const { id } = (await res.json()) as { id: string }
+
+        // Store the new ID immediately so future saves go to the right record
+        useWorkflowStore.getState().setWorkflowId(id)
+
+        // PATCH the new record with current name + canvas state
+        await fetch(`/api/workflow/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, nodes: n, edges: e }),
+        })
+
+        // Update the browser URL without a full navigation
+        window.history.replaceState(null, '', `/workflow/${id}`)
+      }
+
+      setSaveState('saved')
+      toast.success('Workflow saved')
+      // Reset to idle after 2 s
+      setTimeout(() => setSaveState('idle'), 2000)
+    } catch {
+      setSaveState('idle')
+      toast.error('Failed to save workflow')
+    }
+  }, [])
 
   return (
     <header className="flex h-12 shrink-0 items-center gap-3 border-b border-[var(--border-subtle)] bg-[var(--node-bg)] px-3 md:px-4">
       <Link
-        href="/"
+        href="/workflow"
         className="hidden shrink-0 text-xs font-medium text-zinc-400 transition hover:text-white sm:inline"
       >
-        ← Home
+        ← Workflows
       </Link>
 
       <Input
@@ -89,19 +137,28 @@ export function TopBar() {
           <ZoomOut className="h-4 w-4" />
         </Button>
 
-        {/* Save — stub until Phase 5 */}
+        {/* Save */}
         <Button
           variant="outline"
           size="sm"
-          disabled
-          className="ml-1 h-8 gap-1.5 border-zinc-700 bg-transparent text-xs font-medium text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400"
-          title="Wire to POST /api/workflow/[id] in Phase 5"
+          onClick={handleSave}
+          disabled={saveState === 'saving' || isRunning}
+          className="ml-1 h-8 gap-1.5 border-zinc-700 bg-transparent text-xs font-medium text-zinc-300 hover:bg-zinc-800 hover:text-white disabled:opacity-50"
+          title="Save workflow"
+          aria-label="Save workflow"
+          id="save-workflow-btn"
         >
-          <Save className="h-3.5 w-3.5" />
-          Save
+          {saveState === 'saving' ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : saveState === 'saved' ? (
+            <Check className="h-3.5 w-3.5 text-emerald-400" />
+          ) : (
+            <Save className="h-3.5 w-3.5" />
+          )}
+          {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Saved!' : 'Save'}
         </Button>
 
-        {/* Run — Phase 4: wired to useWorkflowExecution */}
+        {/* Run */}
         <Button
           variant="default"
           size="sm"
