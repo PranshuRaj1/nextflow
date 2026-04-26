@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { WorkflowShell } from '@/app/components/canvas/workflow-shell'
+import { type WorkflowCanvasHandle } from '@/app/components/canvas/workflow-canvas'
 import type { AppNode, AppEdge } from '@/types/workflow'
 
 export const dynamic = 'force-dynamic'
@@ -23,6 +24,7 @@ export default function WorkflowEditorPage() {
   // the presets modal still appears, but NOT when opening an existing workflow.
   const isNew = searchParams.get('new') === '1'
   const loaded = useRef(false)
+  const canvasRef = useRef<WorkflowCanvasHandle>(null)
 
   useEffect(() => {
     if (loaded.current) return
@@ -58,6 +60,8 @@ export default function WorkflowEditorPage() {
           })) as AppNode[],
         )
         store.setEdges((data.edges ?? []) as AppEdge[])
+        
+        setTimeout(() => canvasRef.current?.fitView(), 100)
       } catch {
         // Leave canvas blank on network error
       }
@@ -66,5 +70,5 @@ export default function WorkflowEditorPage() {
     void load()
   }, [workflowId])
 
-  return <WorkflowShell showPresetsOnMount={isNew} />
+  return <WorkflowShell canvasRef={canvasRef} showPresetsOnMount={isNew} />
 }

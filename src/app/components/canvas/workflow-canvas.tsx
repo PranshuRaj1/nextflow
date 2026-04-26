@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, forwardRef, useImperativeHandle } from 'react'
 import {
   Background,
   BackgroundVariant,
@@ -17,10 +17,14 @@ import type { AppNodeType } from '@/types/workflow'
 
 const DND_TYPE = 'application/nextflow-node'
 
+export interface WorkflowCanvasHandle {
+  fitView: () => void
+}
+
 /**
  * React Flow canvas: dot grid, minimap (bottom-right), animated purple edges, DAG-safe connects.
  */
-export function WorkflowCanvas() {
+export const WorkflowCanvas = forwardRef<WorkflowCanvasHandle>(function WorkflowCanvas(_, ref) {
   const nodes = useWorkflowStore((s) => s.nodes)
   const edges = useWorkflowStore((s) => s.edges)
   const onNodesChange = useWorkflowStore((s) => s.onNodesChange)
@@ -28,7 +32,11 @@ export function WorkflowCanvas() {
   const onConnect = useWorkflowStore((s) => s.onConnect)
   const isValidConnection = useWorkflowStore((s) => s.isValidConnection)
   const pushHistory = useWorkflowStore((s) => s.pushHistory)
-  const { screenToFlowPosition } = useReactFlow()
+  const { screenToFlowPosition, fitView } = useReactFlow()
+
+  useImperativeHandle(ref, () => ({
+    fitView: () => fitView({ padding: 0.2, duration: 400 }),
+  }))
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -59,7 +67,7 @@ export function WorkflowCanvas() {
       nodeTypes={workflowNodeTypes}
       edgeTypes={workflowEdgeTypes}
       defaultEdgeOptions={{ type: 'purple', animated: true }}
-      fitView
+      fitView={false}
       minZoom={0.2}
       maxZoom={1.5}
       proOptions={{ hideAttribution: true }}
@@ -88,6 +96,6 @@ export function WorkflowCanvas() {
       />
     </ReactFlow>
   )
-}
+})
 
 export { DND_TYPE }

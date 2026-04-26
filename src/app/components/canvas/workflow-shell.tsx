@@ -6,7 +6,7 @@ import { useWorkflowStore } from '@/stores/workflow-store'
 import { LeftSidebar } from '@/app/components/canvas/left-sidebar'
 import { RightSidebar } from '@/app/components/canvas/right-sidebar'
 import { TopBar } from '@/app/components/canvas/top-bar'
-import { WorkflowCanvas } from '@/app/components/canvas/workflow-canvas'
+import { WorkflowCanvas, type WorkflowCanvasHandle } from '@/app/components/canvas/workflow-canvas'
 import { WorkflowErrorBoundary } from '@/app/components/canvas/workflow-error-boundary'
 import WorkflowPresetsModal from '@/app/components/canvas/WorkflowPresetsModal'
 
@@ -39,10 +39,15 @@ function useWorkflowKeyboardShortcuts() {
   }, [])
 }
 
+interface WorkflowShellProps {
+  showPresetsOnMount?: boolean
+  canvasRef?: React.Ref<WorkflowCanvasHandle>
+}
+
 /**
  * Full-height workflow builder: Clerk-protected route mounts this client shell.
  */
-export function WorkflowShell({ showPresetsOnMount = false }: { showPresetsOnMount?: boolean }) {
+export function WorkflowShell({ showPresetsOnMount = false, canvasRef }: WorkflowShellProps) {
   useWorkflowKeyboardShortcuts()
 
   // Show the presets picker only on explicitly fresh (new) canvases.
@@ -61,7 +66,7 @@ export function WorkflowShell({ showPresetsOnMount = false }: { showPresetsOnMou
           </WorkflowErrorBoundary>
           <WorkflowErrorBoundary label="canvas">
               <div className="relative min-h-0 min-w-0 flex-1">
-                <WorkflowCanvas />
+                <WorkflowCanvas ref={canvasRef} />
                 {showPresets && (
                   <WorkflowPresetsModal onDismiss={() => setShowPresets(false)} />
                 )}

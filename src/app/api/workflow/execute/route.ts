@@ -30,7 +30,13 @@ const edgeSchema = z.object({
 const nodeSchema = z.object({
   id: z.string(),
   type: z.string(),
+  position: z.object({
+    x: z.number(),
+    y: z.number(),
+  }),
   data: z.record(z.string(), z.any()),
+  width: z.number().optional(),
+  height: z.number().optional(),
 })
 
 export const executeWorkflowSchema = z.object({
