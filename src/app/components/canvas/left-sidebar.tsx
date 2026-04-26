@@ -11,7 +11,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { useReactFlow } from '@xyflow/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import type { AppNodeType } from '@/types/workflow'
 import { DND_TYPE } from '@/app/components/canvas/workflow-canvas'
@@ -49,7 +49,14 @@ function readStorage(): boolean {
 export function LeftSidebar() {
   const { screenToFlowPosition } = useReactFlow()
 
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(readStorage)
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(false)
+
+  // Read collapse state from localStorage only after mount to avoid hydration mismatch.
+  // Server has no window, so useState(readStorage) would give false on server and
+  // potentially true on client — causing a mismatch. useEffect runs client-only.
+  useEffect(() => {
+    setIsCollapsed(readStorage())
+  }, [])
 
   const toggle = useCallback(() => {
     setIsCollapsed((prev) => {

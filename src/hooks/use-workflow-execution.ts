@@ -8,9 +8,28 @@ import type { AppEdge } from '@/types/workflow'
 import type { ExecuteWorkflowResponse } from '@/app/api/workflow/execute/route'
 import { collectInputs, dispatchNodeTask } from '@/lib/workflow/dispatch-node-task'
 
-// collectInputs and dispatchNodeTask are now in @/lib/workflow/dispatch-node-task
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
-// ── Hook ────────────────────────────────────────────────────────────────────
+/**
+ * Fire-and-forget: persists the final WorkflowRun status + duration to DB.
+ * Errors are swallowed — a failed persist should never break the UI.
+ */
+async function finishRunInDb(
+  runId: string,
+  status: 'COMPLETED' | 'PARTIAL' | 'FAILED',
+  durationMs: number,
+): Promise<void> {
+  try {
+    await fetch('/api/workflow/finish', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ runId, status, durationMs }),
+    })
+  } catch {
+    // Non-critical — history bar will just show stale status
+  }
+}
+
 
 /**
  * `useWorkflowExecution`
@@ -85,6 +104,7 @@ export function useWorkflowExecution() {
     }
 
     // ── 2. Initialise store — all nodes → `pending` ─────────────────────────
+    const startTime = Date.now()
     startRun(plan.runId, plan.allNodeIds)
 
     /**
@@ -143,16 +163,20 @@ export function useWorkflowExecution() {
     // ── 4. All waves complete ───────────────────────────────────────
     finishRun()
 
-    // ── 5. Workflow-level toast ───────────────────────────────────
-    // Read finalResults AFTER finishRun so statuses are settled
+    // ── 5. Persist final status to DB ──────────────────────────────────────
+    const durationMs = Date.now() - startTime
     const finalResults = useExecutionStore.getState().nodeResults
-    const failedCount = Object.values(finalResults).filter(
-      (r) => r.status === 'failed',
-    ).length
-    const skippedCount = Object.values(finalResults).filter(
-      (r) => r.status === 'skipped',
-    ).length
+    const failedCount  = Object.values(finalResults).filter((r) => r.status === 'failed').length
+    const successCount = Object.values(finalResults).filter((r) => r.status === 'success').length
+    const skippedCount = Object.values(finalResults).filter((r) => r.status === 'skipped').length
+    const dbStatus: 'COMPLETED' | 'PARTIAL' | 'FAILED' =
+      failedCount === 0 ? 'COMPLETED'
+      : successCount === 0 ? 'FAILED'
+      : 'PARTIAL'
 
+    void finishRunInDb(plan.runId, dbStatus, durationMs)
+
+    // ── 6. Workflow-level toast ───────────────────────────────────────
     if (failedCount > 0) {
       toast.error(
         `Workflow completed with ${failedCount} failed node${failedCount > 1 ? 's' : ''}` +

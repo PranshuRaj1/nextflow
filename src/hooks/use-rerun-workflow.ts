@@ -11,6 +11,24 @@ import type { ExecuteWorkflowResponse } from '@/app/api/workflow/execute/route'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+async function finishRunInDb(
+  runId: string,
+  status: 'COMPLETED' | 'PARTIAL' | 'FAILED',
+  durationMs: number,
+): Promise<void> {
+  try {
+    await fetch('/api/workflow/finish', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ runId, status, durationMs }),
+    })
+  } catch {
+    // Non-critical
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
 /**
  * Strips React Flow internal runtime fields from nodes that were stored in the
  * database. When Prisma returns JSON nodes they may contain stale internals
@@ -169,6 +187,7 @@ export function useRerunWorkflow() {
         const { plan } = data
 
         // 2. Mark all nodes pending in the store
+        const startTime = Date.now()
         startRun(plan.runId, plan.allNodeIds)
 
         // 3. Walk waves sequentially, nodes within a wave run in parallel
@@ -178,6 +197,17 @@ export function useRerunWorkflow() {
           setNodeFailed,
           setNodeSkipped,
         })
+
+        // 4. Persist final status to DB
+        const durationMs = Date.now() - startTime
+        const nodeResults = useExecutionStore.getState().nodeResults
+        const failedCount  = Object.values(nodeResults).filter((r) => r.status === 'failed').length
+        const successCount = Object.values(nodeResults).filter((r) => r.status === 'success').length
+        const dbStatus: 'COMPLETED' | 'PARTIAL' | 'FAILED' =
+          failedCount === 0 ? 'COMPLETED'
+          : successCount === 0 ? 'FAILED'
+          : 'PARTIAL'
+        void finishRunInDb(plan.runId, dbStatus, durationMs)
       } catch (err) {
         console.error('[useRerunWorkflow] network error:', err)
       } finally {
