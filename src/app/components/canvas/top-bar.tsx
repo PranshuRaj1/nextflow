@@ -4,14 +4,15 @@
 
 import { UserButton } from '@clerk/nextjs'
 import Link from 'next/link'
-import { Check, Loader2, Redo2, Save, Undo2, ZoomOut } from 'lucide-react'
+import { Check, Loader2, Redo2, Save, Undo2, ZoomOut, Download, Upload } from 'lucide-react'
 import { useReactFlow } from '@xyflow/react'
-import { useCallback, useState } from 'react'
+import { useCallback, useState, useRef } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useWorkflowExecution } from '@/hooks/use-workflow-execution'
+import { workflowNodeTypes } from '@/app/components/nodes/node-registry'
 
 type SaveState = 'idle' | 'saving' | 'saved'
 
@@ -32,6 +33,62 @@ export function TopBar() {
 
   const [saveState, setSaveState] = useState<SaveState>('idle')
   const hasNodes = nodes.length > 0
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleExport = useCallback(() => {
+    const { nodes: currentNodes, edges: currentEdges, workflowName: currentName } = useWorkflowStore.getState()
+    const data = { nodes: currentNodes, edges: currentEdges }
+    const jsonString = JSON.stringify(data, null, 2)
+    const blob = new Blob([jsonString], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${currentName || 'workflow'}-${Date.now()}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast.success('Workflow exported')
+  }, [])
+
+  const handleImport = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      const reader = new FileReader()
+      reader.onload = async (event) => {
+        try {
+          const content = event.target?.result as string
+          const parsed = JSON.parse(content)
+
+          if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
+            throw new Error('Invalid workflow JSON format')
+          }
+
+          const validTypes = Object.keys(workflowNodeTypes)
+          for (const node of parsed.nodes) {
+            if (!node.type || !validTypes.includes(node.type)) {
+              throw new Error(`Invalid node type in file: ${node.type}`)
+            }
+          }
+
+          useWorkflowStore.getState().setNodes(parsed.nodes)
+          useWorkflowStore.getState().setEdges(parsed.edges)
+
+          setTimeout(() => fitView({ padding: 0.2, duration: 400 }), 60)
+          toast.success('Workflow imported')
+        } catch (error) {
+          toast.error('Failed to import workflow')
+        }
+        // reset input so the same file can be selected again if needed
+        e.target.value = ''
+      }
+      reader.readAsText(file)
+    },
+    [fitView],
+  )
 
   const handleSave = useCallback(async () => {
     const { workflowId, workflowName: name, nodes: n, edges: e } =
@@ -136,6 +193,39 @@ export function TopBar() {
         >
           <ZoomOut className="h-4 w-4" />
         </Button>
+
+        {/* Export JSON */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={handleExport}
+          disabled={!hasNodes || isRunning}
+          className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          title="Export JSON"
+          aria-label="Export JSON"
+        >
+          <Download className="h-4 w-4" />
+        </Button>
+
+        {/* Import JSON */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isRunning}
+          className="h-8 w-8 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+          title="Import JSON"
+          aria-label="Import JSON"
+        >
+          <Upload className="h-4 w-4" />
+        </Button>
+        <input
+          type="file"
+          accept="application/json"
+          ref={fileInputRef}
+          style={{ display: 'none' }}
+          onChange={handleImport}
+        />
 
         {/* Save */}
         <Button
