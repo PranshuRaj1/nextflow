@@ -1,74 +1,59 @@
-'use client'
-
-import { useEffect, useRef } from 'react'
-import { useParams, useSearchParams } from 'next/navigation'
-import { useWorkflowStore } from '@/stores/workflow-store'
+import { redirect } from 'next/navigation'
+import { auth } from '@clerk/nextjs/server'
+import { prisma } from '@/lib/db/prisma'
 import { WorkflowShell } from '@/app/components/canvas/workflow-shell'
-import { type WorkflowCanvasHandle } from '@/app/components/canvas/workflow-canvas'
-import type { AppNode, AppEdge } from '@/types/workflow'
 
 export const dynamic = 'force-dynamic'
 
-/**
- * Loads a saved workflow from the DB into the Zustand store,
- * then mounts the canvas editor.
- *
- * Runs the fetch exactly once on mount (using a ref guard) to avoid
- * wiping out in-progress canvas changes on re-renders.
- */
-export default function WorkflowEditorPage() {
-  const params = useParams<{ workflowId: string }>()
-  const workflowId = params.workflowId
-  const searchParams = useSearchParams()
-  // ?new=1 is appended by the dashboard when creating a brand-new workflow so
-  // the presets modal still appears, but NOT when opening an existing workflow.
-  const isNew = searchParams.get('new') === '1'
-  const loaded = useRef(false)
-  const canvasRef = useRef<WorkflowCanvasHandle>(null)
+export default async function WorkflowEditorPage({ 
+  params,
+  searchParams 
+}: { 
+  params: Promise<{ workflowId: string }>
+  searchParams: Promise<{ new?: string }>
+}) {
+  const { userId } = await auth()
+  if (!userId) {
+    redirect('/')
+  }
 
-  useEffect(() => {
-    if (loaded.current) return
-    loaded.current = true
+  const { workflowId } = await params
+  const resolvedSearchParams = await searchParams
+  const isNew = resolvedSearchParams.new === '1'
 
-    async function load() {
-      try {
-        const res = await fetch(`/api/workflow/${workflowId}`)
-        if (!res.ok) return // 404 / 403 — store stays empty (fresh canvas)
+  const appUser = await prisma.user.findUnique({
+    where: { clerkId: userId },
+    select: { id: true }
+  })
 
-        const data = (await res.json()) as {
-          id: string
-          name: string
-          nodes: AppNode[]
-          edges: AppEdge[]
-        }
+  if (!appUser) {
+    redirect('/workflow')
+  }
 
-        const store = useWorkflowStore.getState()
-        store.setWorkflowId(data.id)
-        store.setWorkflowName(data.name)
-        // Sanitise RF internal fields that get persisted as JSON (e.g. `measured`)
-        store.setNodes(
-          (data.nodes ?? []).map((n) => ({
-            id: n.id,
-            type: n.type,
-            data: n.data,
-            position: {
-              x: typeof n.position?.x === 'number' ? n.position.x : 0,
-              y: typeof n.position?.y === 'number' ? n.position.y : 0,
-            },
-            ...(n.width  != null ? { width:  n.width  } : {}),
-            ...(n.height != null ? { height: n.height } : {}),
-          })) as AppNode[],
-        )
-        store.setEdges((data.edges ?? []) as AppEdge[])
-        
-        setTimeout(() => canvasRef.current?.fitView(), 100)
-      } catch {
-        // Leave canvas blank on network error
-      }
+  const workflow = await prisma.workflow.findUnique({
+    where: { id: workflowId },
+    select: {
+      id: true,
+      name: true,
+      nodes: true,
+      edges: true,
+      userId: true,
     }
+  })
 
-    void load()
-  }, [workflowId])
+  // Basic security - ensure workflow exists and belongs to the user
+  if (!workflow || workflow.userId !== appUser.id) {
+    redirect('/workflow')
+  }
 
-  return <WorkflowShell canvasRef={canvasRef} showPresetsOnMount={isNew} />
+  // Convert Prisma JsonValue back to generic arrays
+  // (the WorkflowShell handles specific RF formatting/sanitising)
+  const initialData = {
+    id: workflow.id,
+    name: workflow.name,
+    nodes: (workflow.nodes as any[]) ?? [],
+    edges: (workflow.edges as any[]) ?? [],
+  }
+
+  return <WorkflowShell initialData={initialData} isNew={isNew} />
 }

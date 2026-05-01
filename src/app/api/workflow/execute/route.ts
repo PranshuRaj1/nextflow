@@ -8,6 +8,8 @@ import { prisma } from '@/lib/db/prisma'
 import { RunScope, RunStatus } from '@prisma/client'
 import { ensureAppUser } from '@/lib/db/user'
 import { currentUser } from '@clerk/nextjs/server'
+import { tasks } from '@trigger.dev/sdk/v3'
+import { runWorkflowTask } from '@/trigger/run-workflow-task'
 
 // ── Request schema ──────────────────────────────────────────────────────────
 
@@ -175,6 +177,29 @@ export async function POST(
     const email = user?.emailAddresses[0]?.emailAddress ?? 'unknown'
     const appUser = await ensureAppUser(userId, email)
 
+    // ── 5.0 Prevent Race Conditions ──────────────────────────────────────────
+    if (workflowId) {
+      const activeRun = await prisma.workflowRun.findFirst({
+        where: {
+          workflowId,
+          userId: appUser.id,
+          status: { in: ['PENDING', 'RUNNING'] }
+        }
+      })
+      
+      if (activeRun) {
+        return NextResponse.json({
+          success: true,
+          plan: {
+            runId: activeRun.id,
+            scope,
+            allNodeIds: activeNodeIds,
+            waves
+          }
+        })
+      }
+    }
+
     // ── 5.1 Resolve Workflow ID ──────────────────────────────────────────────
     let finalWorkflowId = workflowId
 
@@ -225,7 +250,21 @@ export async function POST(
 
     const runId = run.id
 
-    // ── 6. Return execution plan ──────────────────────────────────────────────
+    // ── 6. Dispatch Master Task ───────────────────────────────────────────────
+    const handle = await tasks.trigger<typeof runWorkflowTask>('run-workflow-task', {
+      runId,
+      workflowId: finalWorkflowId!,
+      waves,
+      nodes: nodes as any,
+      edges: edges as any,
+    })
+
+    await prisma.workflowRun.update({
+      where: { id: runId },
+      data: { triggerRunId: handle.id },
+    })
+
+    // ── 7. Return execution plan ──────────────────────────────────────────────
     const plan: ExecutionPlan = {
       runId,
       scope,

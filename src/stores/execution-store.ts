@@ -98,6 +98,11 @@ interface ExecutionStoreState {
   retryNode: (nodeId: string) => void
 
   /**
+   * Bulk updates node results from the backend polling endpoint.
+   */
+  mergeNodeResults: (nodesData: Record<string, { status: string; output?: any; error?: any }>) => void
+
+  /**
    * Fully resets the store to its initial state.
    * Called before starting a brand-new run or when the user navigates away.
    */
@@ -170,6 +175,29 @@ export const useExecutionStore = create<ExecutionStoreState>((set) => ({
         [nodeId]: { status: 'pending' },
       },
     })),
+
+  mergeNodeResults: (nodesData) =>
+    set((s) => {
+      const updatedResults = { ...s.nodeResults }
+      for (const [nodeId, data] of Object.entries(nodesData)) {
+        // Map backend NodeExecutionStatus to frontend NodeExecutionStatus
+        let mappedStatus: NodeExecutionStatus = 'idle'
+        switch (data.status) {
+          case 'PENDING': mappedStatus = 'pending'; break;
+          case 'RUNNING': mappedStatus = 'running'; break;
+          case 'COMPLETED': mappedStatus = 'success'; break;
+          case 'FAILED': mappedStatus = 'failed'; break;
+          case 'SKIPPED': mappedStatus = 'skipped'; break;
+        }
+
+        updatedResults[nodeId] = {
+          status: mappedStatus,
+          output: data.output,
+          error: data.error,
+        }
+      }
+      return { nodeResults: updatedResults }
+    }),
 
   reset: () => set(initialState),
 }))

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { useExecutionStore } from '@/stores/execution-store'
@@ -8,58 +8,18 @@ import type { AppEdge } from '@/types/workflow'
 import type { ExecuteWorkflowResponse } from '@/app/api/workflow/execute/route'
 import { collectInputs, dispatchNodeTask } from '@/lib/workflow/dispatch-node-task'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Fire-and-forget: persists the final WorkflowRun status + duration to DB.
- * Errors are swallowed — a failed persist should never break the UI.
- */
-async function finishRunInDb(
-  runId: string,
-  status: 'COMPLETED' | 'PARTIAL' | 'FAILED',
-  durationMs: number,
-): Promise<void> {
-  try {
-    await fetch('/api/workflow/finish', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ runId, status, durationMs }),
-    })
-  } catch {
-    // Non-critical — history bar will just show stale status
-  }
-}
-
-
 /**
  * `useWorkflowExecution`
  *
- * Frontend orchestrator for Phase 4 global workflow execution.
+ * Frontend orchestrator for server-side workflow execution.
  *
  * ### Execution flow
  * 1. POSTs current canvas state to `POST /api/workflow/execute` → receives
- *    a wave plan (`string[][]`).
- * 2. Calls `executionStore.startRun()` — marks all nodes `pending` and
- *    triggers the status badge / glow animation system.
- * 3. Iterates waves sequentially. Within each wave, all nodes are dispatched
- *    concurrently via `Promise.all` — independent branches run in parallel.
- * 4. Upstream outputs are forwarded to downstream nodes via `resolvedMap`.
- *    Connected handle values always win over inline node field values.
- * 5. If a node fails, its ID is added to `failedNodeIds`. Any downstream
- *    node with a failed upstream dependency is marked `skipped` rather than
- *    attempted with incomplete inputs.
- * 6. `finishRun()` is called when all waves complete. Per-node results are
- *    kept in the store so the canvas continues to display outputs.
- *
- * ### Orchestration choice
- * Uses **frontend orchestration** for Phase 4. The wave loop runs in the
- * browser. Trigger.dev tasks dispatched mid-run will complete server-side
- * even if the tab is closed, but the UI won't reflect those results.
- * Replacing the internals of `runWorkflow` with a master Trigger.dev task
- * in a later phase requires no changes to the store or TopBar integration.
- *
- * @returns `runWorkflow` — call when the user clicks Run.
- *          `isRunning`   — bind to the Run button's disabled/loading state.
+ *    a plan and `runId`. The API internally dispatches the Trigger.dev Master Task.
+ * 2. Calls `executionStore.startRun(runId)` — marks nodes `pending`.
+ * 3. A `useEffect` loop polls `/api/workflow/runs/[runId]` every 1.5s to 
+ *    sync the server's NodeExecution states into the `executionStore`.
+ * 4. When the Master Task completes, the loop finishes and shows a toast.
  */
 export function useWorkflowExecution() {
   const nodes = useWorkflowStore((s) => s.nodes)
@@ -69,20 +29,102 @@ export function useWorkflowExecution() {
 
   const {
     isRunning,
+    currentRunId,
     startRun,
-    setNodeRunning,
-    setNodeSuccess,
-    setNodeFailed,
-    setNodeSkipped,
+    mergeNodeResults,
     finishRun,
   } = useExecutionStore()
 
+  // ── 1. Recovery on mount ──────────────────────────────────────────────────
+  useEffect(() => {
+    // Only check if we are bound to a saved workflow and not already running
+    if (!workflowId || isRunning) return
+
+    const checkActiveRun = async () => {
+      try {
+        const res = await fetch(`/api/workflow/${workflowId}/active-run`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (data.success && data.run) {
+          // Resume polling for this active run
+          // We pass all canvas node IDs so they get initialized in the store
+          startRun(data.run.id, nodes.map((n) => n.id))
+        }
+      } catch (err) {
+        console.error('[useWorkflowExecution] recovery check error:', err)
+      }
+    }
+    
+    void checkActiveRun()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workflowId])
+
+  // ── 2. Polling Active Run ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!isRunning || !currentRunId) return
+
+    let intervalId: NodeJS.Timeout
+
+    const pollStatus = async () => {
+      try {
+        const res = await fetch(`/api/workflow/runs/${currentRunId}`)
+        if (!res.ok) return
+        
+        const data = await res.json()
+        if (!data.success) return
+
+        // Bulk merge results
+        mergeNodeResults(data.nodes)
+
+        // Check if terminal
+        if (['COMPLETED', 'FAILED', 'PARTIAL', 'CANCELLED'].includes(data.run.status)) {
+          clearInterval(intervalId)
+          
+          // Prevent duplicate toasts if concurrent polls both return terminal status
+          if (!useExecutionStore.getState().isRunning) return
+          
+          finishRun()
+          
+          const failedCount = Object.values(data.nodes).filter((n: any) => n.status === 'FAILED').length
+          const skippedCount = Object.values(data.nodes).filter((n: any) => n.status === 'SKIPPED').length
+
+          if (failedCount > 0) {
+            toast.error(
+              `Workflow completed with ${failedCount} failed node${failedCount > 1 ? 's' : ''}` +
+                (skippedCount > 0 ? ` and ${skippedCount} skipped` : ''),
+              { description: 'Click the red nodes to see what went wrong.' },
+            )
+          } else {
+            toast.success('Workflow completed successfully')
+          }
+        } else if (data.run.status === 'RUNNING' && data.run.lastHeartbeatAt) {
+          const heartbeatTime = new Date(data.run.lastHeartbeatAt).getTime()
+          const now = Date.now()
+          // 5 minutes staleness check
+          if (now - heartbeatTime > 5 * 60 * 1000) {
+            // Avoid spamming the toast by storing a flag on the window object
+            if (!(window as any).__stalledWarningShown) {
+              toast.warning('This run may have stalled. No heartbeat received in 5 minutes.', { duration: 10000 })
+              ;(window as any).__stalledWarningShown = true
+            }
+          }
+        }
+      } catch (err) {
+        console.error('[useWorkflowExecution] polling error:', err)
+      }
+    }
+
+    intervalId = setInterval(pollStatus, 1500)
+    void pollStatus() // fetch immediately
+
+    return () => clearInterval(intervalId)
+  }, [isRunning, currentRunId, mergeNodeResults, finishRun])
+
+  // ── 3. Start New Run ──────────────────────────────────────────────────────
   const runWorkflow = useCallback(async () => {
     if (isRunning) return
     if (nodes.length === 0) return
 
-    // ── 1. Fetch execution plan from the API ────────────────────────────────
-    let plan: ExecuteWorkflowResponse['plan']
     try {
       const res = await fetch('/api/workflow/execute', {
         method: 'POST',
@@ -93,122 +135,22 @@ export function useWorkflowExecution() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: res.statusText })) as { error?: string }
         console.error('[useWorkflowExecution] execute API error:', err.error)
+        toast.error(`Execution failed: ${err.error ?? 'Unknown error'}`)
         return
       }
 
       const data = await res.json() as ExecuteWorkflowResponse
-      plan = data.plan
+      startRun(data.plan.runId, data.plan.allNodeIds)
     } catch (err) {
       console.error('[useWorkflowExecution] network error:', err)
-      return
+      toast.error('Network error starting workflow')
     }
+  }, [isRunning, nodes, edges, workflowId, workflowName, startRun])
 
-    // ── 2. Initialise store — all nodes → `pending` ─────────────────────────
-    const startTime = Date.now()
-    startRun(plan.runId, plan.allNodeIds)
-
-    /**
-     * `resolvedMap`: nodeId → output, built up as waves complete.
-     * This is the data bus that carries outputs between nodes.
-     */
-    const resolvedMap = new Map<string, unknown>()
-
-    /**
-     * `failedNodeIds`: nodes that errored this run.
-     * Downstream dependents are skipped rather than run with missing inputs.
-     */
-    const failedNodeIds = new Set<string>()
-
-    // ── 3. Walk waves sequentially ──────────────────────────────────────────
-    for (const wave of plan.waves) {
-      // All nodes in a wave are dispatched concurrently
-      await Promise.all(
-        wave.map(async (nodeId) => {
-          const node = nodes.find((n) => n.id === nodeId)
-          if (!node) {
-            failedNodeIds.add(nodeId)
-            setNodeFailed(nodeId, 'Node not found on canvas — was it deleted?')
-            return
-          }
-
-          // Skip if any direct upstream dependency failed
-          const incomingEdges = edges.filter((e) => e.target === nodeId)
-          const hasFailedDep = incomingEdges.some((e) => failedNodeIds.has(e.source))
-          if (hasFailedDep) {
-            setNodeSkipped(nodeId)
-            return
-          }
-
-          // Collect all resolved upstream outputs for this node's handles
-          const resolvedInputs = collectInputs(nodeId, edges, resolvedMap)
-
-          // Mark running → triggers glow animation on the node card
-          setNodeRunning(nodeId)
-
-          try {
-            const output = await dispatchNodeTask(node, resolvedInputs, plan.runId)
-            resolvedMap.set(nodeId, output)
-            setNodeSuccess(nodeId, output)
-          } catch (err) {
-            const message =
-              err instanceof Error ? err.message : 'Unknown error during node execution'
-            console.error(`[useWorkflowExecution] node "${nodeId}" failed:`, message)
-            failedNodeIds.add(nodeId)
-            setNodeFailed(nodeId, message)
-          }
-        }),
-      )
-    }
-
-    // ── 4. All waves complete ───────────────────────────────────────
-    finishRun()
-
-    // ── 5. Persist final status to DB ──────────────────────────────────────
-    const durationMs = Date.now() - startTime
-    const finalResults = useExecutionStore.getState().nodeResults
-    const failedCount  = Object.values(finalResults).filter((r) => r.status === 'failed').length
-    const successCount = Object.values(finalResults).filter((r) => r.status === 'success').length
-    const skippedCount = Object.values(finalResults).filter((r) => r.status === 'skipped').length
-    const dbStatus: 'COMPLETED' | 'PARTIAL' | 'FAILED' =
-      failedCount === 0 ? 'COMPLETED'
-      : successCount === 0 ? 'FAILED'
-      : 'PARTIAL'
-
-    void finishRunInDb(plan.runId, dbStatus, durationMs)
-
-    // ── 6. Workflow-level toast ───────────────────────────────────────
-    if (failedCount > 0) {
-      toast.error(
-        `Workflow completed with ${failedCount} failed node${failedCount > 1 ? 's' : ''}` +
-          (skippedCount > 0 ? ` and ${skippedCount} skipped` : ''),
-        { description: 'Click the red nodes to see what went wrong.' },
-      )
-    } else {
-      toast.success('Workflow completed successfully')
-    }
-  }, [
-    isRunning,
-    nodes,
-    edges,
-    workflowId,
-    workflowName,
-    startRun,
-    setNodeRunning,
-    setNodeSuccess,
-    setNodeFailed,
-    setNodeSkipped,
-    finishRun,
-  ])
-
+  // ── 4. Retry Single Node (Client-Side) ────────────────────────────────────
   /**
-   * Retries a single failed node without re-running the whole workflow.
-   *
-   * Reads upstream outputs that are still in `nodeResults` from the previous
-   * run (any node in `success` state). Uses `lastRunId` — which `finishRun()`
-   * preserves — so `dispatchNodeTask` gets a valid runId even after the run
-   * has ended.
-   *
-   * Only callable when `isRunning === false`.
+   * Retries a single failed node locally. It calls the node's API route directly
+   * bypassing the master task, which is perfect for quick one-off retries.
    */
   const retryNode = useCallback(
     async (nodeId: string) => {
@@ -220,7 +162,6 @@ export function useWorkflowExecution() {
       const storeState = useExecutionStore.getState()
       const runId = storeState.lastRunId ?? ''
 
-      // Rebuild resolvedMap from the successful outputs still in the store
       const resolvedMap = new Map<string, unknown>()
       for (const [id, result] of Object.entries(storeState.nodeResults)) {
         if (result.status === 'success') {

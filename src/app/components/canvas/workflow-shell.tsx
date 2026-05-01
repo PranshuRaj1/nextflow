@@ -1,7 +1,7 @@
 'use client'
 
 import { ReactFlowProvider } from '@xyflow/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useWorkflowStore } from '@/stores/workflow-store'
 import { LeftSidebar } from '@/app/components/canvas/left-sidebar'
 import { RightSidebar } from '@/app/components/canvas/right-sidebar'
@@ -39,20 +39,52 @@ function useWorkflowKeyboardShortcuts() {
   }, [])
 }
 
+import type { AppNode, AppEdge } from '@/types/workflow'
+
 interface WorkflowShellProps {
-  showPresetsOnMount?: boolean
-  canvasRef?: React.Ref<WorkflowCanvasHandle>
+  initialData: {
+    id: string
+    name: string
+    nodes: any[]
+    edges: any[]
+  }
+  isNew: boolean
 }
 
 /**
  * Full-height workflow builder: Clerk-protected route mounts this client shell.
  */
-export function WorkflowShell({ showPresetsOnMount = false, canvasRef }: WorkflowShellProps) {
+export function WorkflowShell({ initialData, isNew }: WorkflowShellProps) {
   useWorkflowKeyboardShortcuts()
+  const canvasRef = useRef<WorkflowCanvasHandle>(null)
 
-  // Show the presets picker only on explicitly fresh (new) canvases.
-  // Saved workflows pass false so the modal never appears over existing work.
-  const [showPresets, setShowPresets] = useState(showPresetsOnMount)
+  // Show the presets picker only if explicitly new AND the canvas is actually empty.
+  // This prevents the modal from appearing when refreshing an existing workflow that still has ?new=1
+  const hasNodes = initialData.nodes && initialData.nodes.length > 0
+  const [showPresets, setShowPresets] = useState(isNew && !hasNodes)
+
+  // Hydrate the store once on mount
+  useEffect(() => {
+    const store = useWorkflowStore.getState()
+    store.setWorkflowId(initialData.id)
+    store.setWorkflowName(initialData.name)
+    store.setNodes(
+      (initialData.nodes ?? []).map((n: any) => ({
+        id: n.id,
+        type: n.type,
+        data: n.data,
+        position: {
+          x: typeof n.position?.x === 'number' ? n.position.x : 0,
+          y: typeof n.position?.y === 'number' ? n.position.y : 0,
+        },
+        ...(n.width != null ? { width: n.width } : {}),
+        ...(n.height != null ? { height: n.height } : {}),
+      })) as AppNode[],
+    )
+    store.setEdges((initialData.edges ?? []) as AppEdge[])
+
+    setTimeout(() => canvasRef.current?.fitView(), 100)
+  }, [initialData])
 
   return (
     <ReactFlowProvider>
