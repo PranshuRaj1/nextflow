@@ -1,5 +1,11 @@
 import { PrismaClient } from '@prisma/client'
 import { PrismaNeon } from '@prisma/adapter-neon'
+import { neonConfig } from '@neondatabase/serverless'
+import ws from 'ws'
+
+neonConfig.webSocketConstructor = ws
+
+
 
 /**
  * Reuse one Prisma client in dev to avoid exhausting connections on hot reload.

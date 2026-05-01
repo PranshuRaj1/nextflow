@@ -1,7 +1,13 @@
 import { task } from '@trigger.dev/sdk'
+import { neonConfig } from '@neondatabase/serverless'
+import ws from 'ws'
+
+neonConfig.webSocketConstructor = ws
+
 import { GoogleGenerativeAI, type Part } from '@google/generative-ai'
 import type { RunLlmPayload, RunLlmResult } from '@/types/tasks'
 import { prisma } from '@/lib/db/prisma'
+
 
 /**
  * Trigger.dev background task — calls the Google Gemini API with optional

@@ -1,5 +1,11 @@
 import { task } from "@trigger.dev/sdk/v3";
+import { neonConfig } from '@neondatabase/serverless'
+import ws from 'ws'
+
+neonConfig.webSocketConstructor = ws
+
 import { prisma } from "@/lib/db/prisma";
+
 import { collectInputs } from "@/lib/workflow/dispatch-node-task";
 import type { AppNode, AppEdge } from "@/types/workflow";
 import { tasks } from "@trigger.dev/sdk/v3";
