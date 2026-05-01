@@ -16,6 +16,6 @@ export default function NewWorkflowPage() {
     useWorkflowStore.getState().reset()
   }, [])
 
-  return <WorkflowShell showPresetsOnMount={true} />
+  return <WorkflowShell initialData={{ id: '', name: 'Untitled Workflow', nodes: [], edges: [] }} isNew={true} />
 }
 

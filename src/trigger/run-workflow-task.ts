@@ -135,7 +135,10 @@ export const runWorkflowTask = task({
               if (result.ok) {
                 output = result.output.text;
               } else {
-                throw new Error(result.error?.message || 'LLM task failed');
+                const errorMessage = result.ok === false && result.error instanceof Error
+                  ? result.error.message
+                  : 'LLM task failed';
+                throw new Error(errorMessage);
               }
               break;
             }
@@ -157,7 +160,10 @@ export const runWorkflowTask = task({
               if (result.ok) {
                 output = result.output.cdnUrl;
               } else {
-                throw new Error(result.error?.message || 'Crop Image task failed');
+                const errorMessage = result.ok === false && result.error instanceof Error
+                  ? result.error.message
+                  : 'Crop Image task failed';
+                throw new Error(errorMessage);
               }
               break;
             }
@@ -176,7 +182,10 @@ export const runWorkflowTask = task({
               if (result.ok) {
                 output = result.output.cdnUrl;
               } else {
-                throw new Error(result.error?.message || 'Extract Frame task failed');
+                const errorMessage = result.ok === false && result.error instanceof Error
+                  ? result.error.message
+                  : 'Extract Frame task failed';
+                throw new Error(errorMessage);
               }
               break;
             }
