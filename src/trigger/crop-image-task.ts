@@ -5,7 +5,12 @@ import { writeFile, readFile, unlink, mkdtemp } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Transloadit } from 'transloadit'
+import { neonConfig } from '@neondatabase/serverless'
+import ws from 'ws'
 import type { CropImagePayload, CropImageResult } from '@/types/tasks'
+import { prisma } from '@/lib/db/prisma'
+
+neonConfig.webSocketConstructor = ws
 
 const execFileAsync = promisify(execFile)
 
@@ -43,6 +48,33 @@ export const cropImageTask = task({
     randomize: false,
   },
   run: async (payload: CropImagePayload): Promise<CropImageResult> => {
+    const startTime = Date.now()
+
+    // ── 0. Create NodeExecution record (Running) ───────────────────────────
+    let executionId: string | undefined
+    if (payload.runId) {
+      try {
+        const execution = await prisma.nodeExecution.create({
+          data: {
+            runId: payload.runId,
+            nodeId: payload.nodeId,
+            nodeType: 'cropImage',
+            status: 'RUNNING',
+            inputs: {
+              imageUrl: payload.imageUrl,
+              xPercent: payload.xPercent,
+              yPercent: payload.yPercent,
+              widthPercent: payload.widthPercent,
+              heightPercent: payload.heightPercent,
+            } as any,
+          },
+        })
+        executionId = execution.id
+      } catch (err) {
+        console.error('[cropImageTask] Failed to create NodeExecution record:', err)
+      }
+    }
+
     const transloaditKey = process.env.TRANSLOADIT_KEY
     const transloaditSecret = process.env.TRANSLOADIT_SECRET
     if (!transloaditKey || !transloaditSecret) {
@@ -149,9 +181,40 @@ export const cropImageTask = task({
         throw new Error('Transloadit upload did not return a CDN URL')
       }
 
+      const durationMs = Date.now() - startTime
+
+      // ── 8. Update NodeExecution record (Completed) ──────────────────────
+      if (executionId) {
+        await prisma.nodeExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'COMPLETED',
+            output: { cdnUrl: uploadedFile.ssl_url } as any,
+            executionMs: durationMs,
+          },
+        })
+      }
+
       return { cdnUrl: uploadedFile.ssl_url }
+    } catch (err) {
+      const durationMs = Date.now() - startTime
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error'
+
+      // ── 9. Update NodeExecution record (Failed) ─────────────────────────
+      if (executionId) {
+        await prisma.nodeExecution.update({
+          where: { id: executionId },
+          data: {
+            status: 'FAILED',
+            error: { message: errorMessage } as any,
+            executionMs: durationMs,
+          },
+        }).catch(() => undefined)
+      }
+
+      throw err
     } finally {
-      // ── 8. Clean up temp files ──────────────────────────────────────────
+      // ── 10. Clean up temp files ─────────────────────────────────────────
       await unlink(inputPath).catch(() => undefined)
       await unlink(outputPath).catch(() => undefined)
     }
