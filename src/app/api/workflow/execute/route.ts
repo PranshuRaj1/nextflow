@@ -9,7 +9,7 @@ import { RunScope, RunStatus } from '@prisma/client'
 import { ensureAppUser } from '@/lib/db/user'
 import { currentUser } from '@clerk/nextjs/server'
 import { tasks } from '@trigger.dev/sdk/v3'
-import { runWorkflowTask } from '@/trigger/run-workflow-task'
+import { startWorkflow } from '@/lib/workflow/start-workflow'
 
 // ── Request schema ──────────────────────────────────────────────────────────
 
@@ -251,7 +251,7 @@ export async function POST(
     const runId = run.id
 
     // ── 6. Dispatch Master Task ───────────────────────────────────────────────
-    const handle = await tasks.trigger<typeof runWorkflowTask>('run-workflow-task', {
+    const handle = await startWorkflow({
       runId,
       workflowId: finalWorkflowId!,
       waves,
@@ -259,10 +259,12 @@ export async function POST(
       edges: edges as any,
     })
 
-    await prisma.workflowRun.update({
-      where: { id: runId },
-      data: { triggerRunId: handle.id },
-    })
+    if (handle) {
+      await prisma.workflowRun.update({
+        where: { id: runId },
+        data: { triggerRunId: handle.id },
+      })
+    }
 
     // ── 7. Return execution plan ──────────────────────────────────────────────
     const plan: ExecutionPlan = {
