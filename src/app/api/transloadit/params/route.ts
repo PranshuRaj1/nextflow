@@ -1,4 +1,5 @@
 import { createHmac } from 'crypto'
+import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
 /**
@@ -17,6 +18,10 @@ import { NextResponse } from 'next/server'
  * Signature format: `sha384:<hex>` as required by Transloadit.
  */
 export async function POST(req: Request) {
+  const { userId } = await auth()
+  if (!userId) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   const key = process.env.TRANSLOADIT_KEY
   const secret = process.env.TRANSLOADIT_SECRET
 

@@ -147,16 +147,7 @@ export default function WorkflowDashboard() {
       {/* ── Header ── */}
       <header className="border-b border-white/[0.05] bg-[var(--node-bg)] px-6 py-4">
         <div className="mx-auto flex max-w-6xl items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="text-xs text-zinc-500 transition hover:text-zinc-300"
-            >
-              ← Home
-            </Link>
-            <span className="text-zinc-700">/</span>
-            <h1 className="text-sm font-semibold text-zinc-200">Workflows</h1>
-          </div>
+          <h1 className="text-sm font-semibold text-zinc-200">Workflows</h1>
           <NewWorkflowButton />
         </div>
       </header>

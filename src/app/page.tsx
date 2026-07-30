@@ -1,5 +1,6 @@
-import { redirect } from 'next/navigation'
+import { LandingView } from "./components/landing/landing-view"
 
 export default function Home() {
-  redirect('/workflow')
+  return <LandingView />
 }
+
