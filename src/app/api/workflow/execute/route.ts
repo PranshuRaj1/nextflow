@@ -205,7 +205,7 @@ export async function POST(
 
     if (finalWorkflowId) {
       await prisma.workflow.update({
-        where: { id: finalWorkflowId },
+        where: { id: finalWorkflowId, userId: appUser.id },
         data: {
           name: workflowName ?? 'Untitled workflow',
           nodes: nodes as any,
