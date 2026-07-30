@@ -1,6 +1,5 @@
 # NextFlow — LLM Workflow Builder
 
-> A Krea.ai-inspired visual AI pipeline builder.  
 > Drag typed nodes onto a canvas, wire them together, and execute entire LLM workflows — every node runs as a **Trigger.dev** background task.
 
 **Stack:** Next.js (App Router) · React Flow · Gemini API · Trigger.dev · Clerk · Prisma / Neon · Transloadit · TypeScript
