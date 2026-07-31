@@ -1,6 +1,6 @@
-import Link from "next/link"
+import { CreateWorkflowButton } from "./create-workflow-button"
 import { LandingSidebar } from "./sidebar"
-import { ArrowRight, Sparkles, Workflow, Cpu, Layers } from "lucide-react"
+import { Sparkles, Workflow, Cpu, Layers } from "lucide-react"
 
 export function LandingView() {
   return (
@@ -22,13 +22,7 @@ export function LandingView() {
                 Connect LLMs, image manipulation, and video frame extraction in a visual DAG graph powered by Gemini and Trigger.dev.
               </p>
               <div className="mt-2 flex flex-wrap gap-4">
-                <Link
-                  href="/workflow"
-                  className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-3 text-sm font-semibold text-white shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
-                >
-                  Create Workflow
-                  <ArrowRight className="h-4 w-4" />
-                </Link>
+                <CreateWorkflowButton />
               </div>
             </div>
           </div>
