@@ -151,6 +151,7 @@ export function TopBar() {
         className="h-8 min-w-0 flex-1 border-transparent bg-zinc-900/50 px-2 py-1 text-sm font-medium text-white focus-visible:border-[var(--accent)] focus-visible:ring-0 focus-visible:ring-offset-0"
         value={workflowName}
         onChange={(e) => setWorkflowName(e.target.value)}
+        onFocus={(e) => e.target.select()}
         aria-label="Workflow name"
         disabled={isRunning}
       />
