@@ -38,12 +38,24 @@ export async function startWorkflow({
 
   // Store the full graph in Redis. Each wave task reads from here instead of
   // receiving it in its payload. Keeps per-wave trigger payloads tiny.
-  await redis.set(
-    graphKey(runId),
-    JSON.stringify({ waves, nodes, edges }),
-    { ex: RUN_TTL }
-  )
+  try {
+    await redis.set(
+      graphKey(runId),
+      JSON.stringify({ waves, nodes, edges }),
+      { ex: RUN_TTL }
+    )
+  } catch (err: any) {
+    const causeMsg = err?.cause?.message ? ` (${err.cause.message})` : (err?.cause ? ` (${String(err.cause)})` : '')
+    console.error('[startWorkflow] Redis error:', err, 'cause:', err?.cause)
+    throw new Error(`Upstash Redis error: ${err?.message ?? err}${causeMsg}`)
+  }
 
   // Kick off wave 0. The task chain handles the rest.
-  return await runWaveTask.trigger({ runId, waveIndex: 0 })
+  try {
+    return await runWaveTask.trigger({ runId, waveIndex: 0 })
+  } catch (err: any) {
+    const causeMsg = err?.cause?.message ? ` (${err.cause.message})` : (err?.cause ? ` (${String(err.cause)})` : '')
+    console.error('[startWorkflow] Trigger.dev error:', err, 'cause:', err?.cause)
+    throw new Error(`Trigger.dev dispatch error: ${err?.message ?? err}${causeMsg}`)
+  }
 }

@@ -286,9 +286,10 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true, plan })
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Database operation failed'
-    console.error('[POST /api/workflow/execute] Error:', message)
+  } catch (err: any) {
+    const causeMsg = err?.cause?.message ? ` (${err.cause.message})` : (err?.cause ? ` (${String(err.cause)})` : '')
+    const message = (err instanceof Error ? err.message : 'Database operation failed') + causeMsg
+    console.error('[POST /api/workflow/execute] Error:', message, err)
     return NextResponse.json({ success: false, error: message }, { status: 500 })
   }
 }
