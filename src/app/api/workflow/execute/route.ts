@@ -188,15 +188,26 @@ export async function POST(
       })
       
       if (activeRun) {
-        return NextResponse.json({
-          success: true,
-          plan: {
-            runId: activeRun.id,
-            scope,
-            allNodeIds: activeNodeIds,
-            waves
-          }
-        })
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+        const lastActivity = activeRun.lastHeartbeatAt ?? activeRun.startedAt
+        
+        if (lastActivity < fiveMinutesAgo) {
+          // Auto-fail stalled run
+          await prisma.workflowRun.update({
+            where: { id: activeRun.id },
+            data: { status: RunStatus.FAILED, completedAt: new Date() }
+          })
+        } else {
+          return NextResponse.json({
+            success: true,
+            plan: {
+              runId: activeRun.id,
+              scope,
+              allNodeIds: activeNodeIds,
+              waves
+            }
+          })
+        }
       }
     }
 
